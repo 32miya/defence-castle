@@ -488,7 +488,7 @@ function armyFor(){ const sv=loadSave(),cap=SIM.capOf(MAP);
 function startBattle(){
   Object.assign(CAM,MAP.camera||{});
   clearUnits(); bench=null; sunsetDone=false; IY.applyTime(1); OB.shadowDirty=3;
-  const AR=armyFor(); B=new SIM.Battle(MAP,{army:AR.army,h:H,block:OB.block,water:IY.isWater}); drawRoutes(B);
+  const AR=armyFor(); B=new SIM.Battle(MAP,{army:AR.army,h:H,block:OB.block,water:IY.isWater,floor:IY.floorH}); drawRoutes(B);
   buildCards(B); buildLines(); setLines(0); $('obModal').hidden=true; $('obCards').hidden=false; $('obLines').hidden=false; $('obHud').hidden=!QS.has('hud');
   UI.pauseManual=false; finish(); toast(`<b>${MAP.title}</b>${MAP.goal}！`,'big'); $('obSnd').textContent=SND.on?'🔊':'🔇'; sfx('horagai'); sfx('taiko',0,1.5);
 }
@@ -551,7 +551,7 @@ function showBenchSetup(){
 }
 function startBench(auto){
   clearUnits(); IY.applyTime(1); OB.shadowDirty=3;
-  B=new SIM.Battle(MAP,{army:[],h:H,waves:[],duration:1e9,block:OB.block,water:IY.isWater}); drawRoutes(B); B.checkEnd=function(){}; bench={t:0,auto,phase:0,last:0,res:null};
+  B=new SIM.Battle(MAP,{army:[],h:H,waves:[],duration:1e9,block:OB.block,water:IY.isWater,floor:IY.floorH}); drawRoutes(B); B.checkEnd=function(){}; bench={t:0,auto,phase:0,last:0,res:null};
   BEN.auto=auto; if(auto){ BEN.ally=4; BEN.enemy=8; BEN.log=[]; }
   $('obModal').hidden=true; $('obCards').hidden=true; $('obLines').hidden=true; $('obHud').hidden=false; $('obWave').textContent='負荷テスト';
   const H2=$('obHud'); H2.innerHTML='<pre id="obHudT"></pre><div class="obAct"><button class="obBtn" id="bFig">兵士の表示 ON</button><button class="obBtn" id="bEnd">終わる</button></div>';

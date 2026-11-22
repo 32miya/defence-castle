@@ -73,7 +73,7 @@ const MAP={
   },
   keep:{x0:-200,x1:305,z0:-200,z1:252},
   camera:{x:90,z:60,yaw:-.35,dist:260,pitch:.9},
-  next:{id:'hikone',castle:'彦根城',note:'準備中'}
+  next:{id:'hikone',castle:'彦根城',url:'/32miya-32miya-hikone-castle/?battle',cap:5}
 };
 if(typeof module!=='undefined'&&module.exports) module.exports=MAP; else (root.OshiroBattleMaps=root.OshiroBattleMaps||{})[MAP.id]=MAP;
 })(typeof window!=='undefined'?window:globalThis);
