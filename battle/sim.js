@@ -14,7 +14,20 @@ const TYPES={
   /* 鉄砲隊＝弓の上位（安土の織田信長など、特技で弓隊が置き換わる） */
   teppo:{name:'鉄砲隊',short:'鉄', speed:2.8, range:36,  atk:1.05, def:0.85, melee:false, base:'yumi'}
 };
-const BEATS={yari:'kiba',kiba:'yumi',yumi:'yari'};   /* 足軽→騎馬、騎馬→弓、弓→足軽 に強い */
+const BEATS={yari:'kiba',kiba:'yumi',yumi:'yari'};
+/* 部隊ごとの特技（使うと一定時間強くなる。使ったあとは待ち時間） */
+const SKILLS={
+  yari: {name:'槍衾',    cd:40,dur:12,text:'その場で槍をそろえる。12秒、受ける損害0.6倍・攻撃1.3倍（動けない）'},
+  yumi: {name:'一斉射撃',cd:35,dur:8, text:'8秒、矢の威力1.8倍'},
+  kiba: {name:'突撃',    cd:40,dur:8, text:'8秒、攻撃1.5倍・足1.4倍。ぶつかった敵の士気を大きく下げる'},
+  teppo:{name:'三段撃ち',cd:35,dur:8, text:'8秒、鉄砲の威力1.8倍'}
+};
+/* 策（采配を使う。采配は時間とともにたまる） */
+const SAKU={
+  kobu:    {name:'鼓舞',      cost:1,text:'味方1部隊の士気を40回復し、15秒攻撃1.2倍。敗走中ならすぐ立ち直る'},
+  rakuseki:{name:'落石',      cost:2,text:'選んだ場所に石を落とす。半径11mの敵に損害・士気低下・8秒足止め'},
+  gate:    {name:'門を閉ざす',cost:2,text:'門を25秒閉じる。敵は門を破るまで先へ進めない'}
+};   /* 足軽→騎馬、騎馬→弓、弓→足軽 に強い */
 const baseOf=t=>(TYPES[t]&&TYPES[t].base)||t;
 
 const DEF={
@@ -25,7 +38,9 @@ const DEF={
   menPerFigure:100,          /* 表示: 兵100人につき兵士1体 */
   routTime:12,               /* 敗走している時間 */
   rallyMorale:35,            /* 敗走から立ち直ったときの士気 */
-  enemySpeed:.8              /* 攻め手は用心して進む（味方より遅い） */
+  enemySpeed:.8,             /* 攻め手は用心して進む（味方より遅い） */
+  saihaiStart:2, saihaiMax:5, saihaiRate:1/9, /* 采配: 最初2、9秒で1たまる、最大5 */
+  gateTime:25, gateHP:100
 };
 
 function dist(ax,az,bx,bz){ return Math.hypot(bx-ax,bz-az); }
@@ -80,6 +95,9 @@ class Battle{
     this.skill=(map.general&&map.general.skill)||null;
     this.bossSkill=(map.enemy.boss&&map.enemy.boss.skill)||null;
     this.stats={allyMen0:0,allyLost:0,enemyMen:0,enemyLost:0,enemyRouted:0};
+    /* 采配（策に使う） */
+    this.saihai=this.C.saihaiStart; this.rocks=[];
+    this.gates=(map.narrow||[]).map((g,i)=>({i,name:g.name||'門',pos:g.pos,r:g.r||7,until:0,hp:0}));
     for(const a of (opt.army||[])) this.addAlly(a);
   }
   /* 味方の部隊を置く */
@@ -90,7 +108,7 @@ class Battle{
     u.gen=a.gen||''; u.armyId=a.id; u.home=slot; u.slot=slot; u.order={kind:'hold',x:u.x,z:u.z,slot};
     this.stats.allyMen0+=u.men; return u;
   }
-  mkUnit(side,type,men,x,z,name){ const u={id:this.nextId++,side,type,base:baseOf(type),name,men,men0:men,morale:100,x,z,px:x,pz:z,y:this.h(x,z),heading:side==='enemy'?0:Math.PI,
+  mkUnit(side,type,men,x,z,name){ const u={id:this.nextId++,side,type,base:baseOf(type),name,men,men0:men,morale:100,x,z,px:x,pz:z,y:this.h(x,z),heading:side==='enemy'?0:Math.PI,charged:new Set(),kobuUntil:0,slowUntil:0,skillReady:0,
       state:'idle',path:null,order:null,target:null,engaged:false,hitBy:[],kills:0,fightT:0,routT:0,cool:Math.random(),moving:false,slot:null,s:0,ri:1};
     this.units.push(u); return u; }
   spawnEnemy(e,wave){
@@ -131,6 +149,8 @@ class Battle{
     for(const u of this.units){ u.px=u.x; u.pz=u.z; }
     this.time+=dt;
     this.spawnWaves(dt);
+    this.saihai=Math.min(this.C.saihaiMax,this.saihai+dt*this.C.saihaiRate);
+    this.updRocks(); this.updGates(dt);
     const A=this.live('ally'),E=this.live('enemy');
     for(const u of A) this.thinkAlly(u,E,A,dt);
     for(const u of E) this.thinkEnemy(u,A,dt);
@@ -219,6 +239,8 @@ class Battle{
       u.engaged=true; if(d<=C.contact+.5) t.engaged=true;
       let m=1; if(BEATS[u.base]===t.base) m=C.adv; else if(BEATS[t.base]===u.base) m=C.dis;
       let f=T.atk*m*(0.55+0.45*u.morale/100);
+      if(this.buff(u,'yari')) f*=1.3; if(this.buff(u,'yumi')||this.buff(u,'teppo')) f*=1.8; if(this.buff(u,'kiba')) f*=1.5; if(u.kobuUntil>this.time) f*=1.2;
+      if(this.buff(u,'kiba')&&d<=C.contact+.5&&!u.charged.has(t.id)){ u.charged.add(t.id); t.morale-=18; this.events.push({k:'chargeHit',u,t}); }
       if(!T.melee&&d<C.contact) f*=.5;                                         /* 弓が斬り合いに巻き込まれた */
       if(!T.melee){ const dh=u.y-t.y; if(dh>3) f*=1.2; }                       /* 高い所から射る */
       if(u.type==='kiba'&&this.inNarrow(u)) f*=.65;                            /* 狭い門では騎馬が弱い */
@@ -227,6 +249,7 @@ class Battle{
       u.fightT+=dt;
       let dmg=u.men*C.K*f*dt/TYPES[t.type].def;
       if(t.side==='ally'&&this.skill&&this.skill.kind==='kengo'&&this.slotAt(t)) dmg*=1-(this.skill.v||.2);
+      if(this.buff(t,'yari')) dmg*=.6;
       t.dmg=(t.dmg||0)+dmg; t.hitBy.push(u);
       if(!T.melee){ u.cool-=dt; if(u.cool<=0){ u.cool=1.1+Math.random()*.4; this.events.push({k:'volley',a:u,b:t}); } }
     }
@@ -255,19 +278,50 @@ class Battle{
   moveAll(all,dt){
     for(const u of all){
       u.moving=false; if(u.state==='dead'||u.state==='gone') continue;
+      if(u.side==='enemy') u.atGate=null;
+      if(this.buff(u,'yari')){ if(u.target) this.face(u,u.target); continue; }
       if(u.engaged&&u.state!=='rout'&&!(u.target&&dist(u.x,u.z,u.target.x,u.target.z)>this.C.contact+.5)) { this.face(u,u.target); continue; }
       if(!u.path||!u.path.length){ if(u.target) this.face(u,u.target); continue; }
       const T=TYPES[u.type]; let sp=T.speed*(u.speedMul||1)*(u.state==='rout'?1.25:1)*(u.side==='enemy'?this.C.enemySpeed:1);
       if(u.type==='kiba'&&this.inNarrow(u)) sp*=.6;
+      if(this.buff(u,'kiba')) sp*=1.4; if(u.slowUntil>this.time) sp*=.45;
       let left=sp*dt;
       while(left>0&&u.path.length){ const [tx,tz]=u.path[0],d=dist(u.x,u.z,tx,tz); if(d<.3){ u.path.shift(); continue; }
         const st=Math.min(left,d,1.2),nx=u.x+(tx-u.x)/d*st,nz=u.z+(tz-u.z)/d*st,nh=this.h(nx,nz);
         /* 急な斜面では遅くなる */
         const slope=Math.abs(nh-u.y)/st; const f=clamp(1-Math.max(0,slope-.35)*1.4,.3,1);
         const adv=st*f; const ax=u.x+(tx-u.x)/d*adv,az=u.z+(tz-u.z)/d*adv;
+        if(u.side==='enemy'&&u.state!=='rout'){ const g=this.gateBlock(u,ax,az); if(g){ u.atGate=g; this.face(u,{x:g.pos[0],z:g.pos[1]}); break; } }
         u.heading=Math.atan2(tx-u.x,tz-u.z); u.x=ax; u.z=az; u.y=this.h(ax,az); left-=st; u.moving=true; }
     }
   }
+  /* ---------- 特技と策 ---------- */
+  buff(u,k){ return u.buff&&u.buff.kind===k&&this.time<u.buff.until; }
+  skillOf(u){ return SKILLS[u.type]||SKILLS[u.base]; }
+  skillWait(u){ return Math.max(0,(u.skillReady||0)-this.time); }
+  useSkill(id){ const u=this.unit(id); if(!u||u.side!=='ally'||u.state==='dead'||u.state==='rout'||this.skillWait(u)>0) return false;
+    const S=this.skillOf(u); u.buff={kind:u.type,until:this.time+S.dur}; u.skillReady=this.time+S.cd;
+    if(u.base==='yari'){ u.path=null; u.order={kind:'hold',x:u.x,z:u.z,slot:this.slotAt(u)}; }
+    if(u.type==='kiba') u.charged=new Set();
+    this.events.push({k:'skill',u,name:S.name}); return true; }
+  canSaku(k){ return this.saihai>=SAKU[k].cost; }
+  useSaku(k,a){ const S=SAKU[k]; if(!S||this.saihai<S.cost) return false;
+    if(k==='kobu'){ const t=this.unit(a.target); if(!t||t.side!=='ally'||t.state==='dead') return false;
+      if(t.state==='rout'){ t.state='idle'; t.morale=55; t.path=null; t.order={kind:'hold',x:t.x,z:t.z,slot:this.slotAt(t)}; this.events.push({k:'rally',u:t}); } else t.morale=Math.min(100,t.morale+40);
+      t.kobuUntil=this.time+15; }
+    else if(k==='rakuseki'){ this.rocks.push({x:a.x,z:a.z,t:this.time+.9,r:11}); }
+    else if(k==='gate'){ const g=this.gates[a.gate]; if(!g||(g.until>this.time&&g.hp>0)) return false; g.until=this.time+this.C.gateTime; g.hp=this.C.gateHP; }
+    else return false;
+    this.saihai-=S.cost; this.events.push({k:'saku',kind:k,a}); return true; }
+  updRocks(){ for(let i=this.rocks.length-1;i>=0;i--){ const R=this.rocks[i]; if(this.time<R.t) continue; this.rocks.splice(i,1); let hits=0;
+    for(const e of this.live('enemy')){ const d=dist(e.x,e.z,R.x,R.z); if(d>R.r) continue; hits++; const k=1-d/R.r*.5; e.dmg=(e.dmg||0)+(e.men*.13+18)*k; e.morale-=25*k; e.slowUntil=this.time+8; }
+    this.events.push({k:'rock',x:R.x,z:R.z,r:R.r,hits}); } }
+  updGates(dt){ for(const g of this.gates){ if(!(g.until>0)) continue;
+    if(g.hp<=0){ g.until=0; this.events.push({k:'gateBroken',g}); continue; }
+    if(this.time>=g.until){ g.until=0; g.hp=0; this.events.push({k:'gateOpen',g}); continue; }
+    for(const e of this.live('enemy')) if(e.atGate===g&&!e.engaged) g.hp-=e.men*TYPES[e.type].atk*(TYPES[e.type].melee?.016:.006)*dt; } }
+  gateOpenAt(g){ return !(g.until>this.time&&g.hp>0); }
+  gateBlock(u,nx,nz){ for(const g of this.gates){ if(this.gateOpenAt(g)) continue; const d0=dist(u.x,u.z,g.pos[0],g.pos[1]),d1=dist(nx,nz,g.pos[0],g.pos[1]); if(d1<g.r+3&&d1<d0) return g; } return null; }
   face(u,t){ if(t) u.heading=Math.atan2(t.x-u.x,t.z-u.z); }
   separate(L){ for(let i=0;i<L.length;i++) for(let j=i+1;j<L.length;j++){ const a=L[i],b=L[j]; const dx=b.x-a.x,dz=b.z-a.z,d=Math.hypot(dx,dz),m=4.5; if(d<m&&d>1e-4){ const p=(m-d)/2*.5,ux=dx/d,uz=dz/d; a.x-=ux*p; a.z-=uz*p; b.x+=ux*p; b.z+=uz*p; } else if(d<=1e-4){ b.x+=.5; } } }
   checkEnd(){
@@ -312,6 +366,6 @@ function nextArmy(res,cap,opt){
   for(const a of army){ a.menNext=a.men+a.reinf; }
   return {lossRate,army,notes,bonus};
 }
-const API={TYPES,BEATS,DEF,Battle,buildNav,navPath,projRoute,nextArmy,capOf,GROW,baseOf};
+const API={TYPES,BEATS,SKILLS,SAKU,DEF,Battle,buildNav,navPath,projRoute,nextArmy,capOf,GROW,baseOf};
 if(typeof module!=='undefined'&&module.exports) module.exports=API; else root.OshiroBattleSim=API;
 })(typeof window!=='undefined'?window:globalThis);

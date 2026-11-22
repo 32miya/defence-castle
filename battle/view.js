@@ -97,6 +97,7 @@ function makeSoldiers(){
   OB.rings=new THREE.InstancedMesh(rg,new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.55,depthWrite:false,fog:false}),400);
   for(let i=0;i<400;i++) OB.rings.setColorAt(i,COL.ally); OB.rings.count=0; OB.rings.frustumCulled=false; OB.rings.renderOrder=2; IY.scene.add(OB.rings);
   /* 矢 */
+  OB.rockMesh=new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1.2,0),new THREE.MeshLambertMaterial({color:0x8a8378}),80); OB.rockMesh.count=0; OB.rockMesh.frustumCulled=false; IY.scene.add(OB.rockMesh);
   const ag=new THREE.BoxGeometry(.07,.07,1.5); OB.arrowMesh=new THREE.InstancedMesh(ag,new THREE.MeshBasicMaterial({color:0x2a2018}),500); OB.arrowMesh.count=0; OB.arrowMesh.frustumCulled=false; IY.scene.add(OB.arrowMesh);
 }
 const _m=new THREE.Matrix4(),_q=new THREE.Quaternion(),_v=new THREE.Vector3(),_v2=new THREE.Vector3(),_s=new THREE.Vector3(1,1,1),_z=new THREE.Vector3(0,0,1);
@@ -137,6 +138,15 @@ function drawArrows(dt){ let n=0; for(let i=arrows.length-1;i>=0;i--){ const A=a
   _v.set(x2-x,y2-y,z2-z).normalize(); _q.setFromUnitVectors(_z,_v); _m.compose(_v2.set(x,y,z),_q,_s); OB.arrowMesh.setMatrixAt(n++,_m); }
   OB.arrowMesh.count=n; if(n) OB.arrowMesh.instanceMatrix.needsUpdate=true; }
 
+/* 落石の岩と土けむり */
+const rockFx=[],dusts=[];
+function dropRocks(x,z){ for(let i=0;i<14;i++){ const a=Math.random()*Math.PI*2,r=Math.random()*9; rockFx.push({x:x+Math.cos(a)*r,z:z+Math.sin(a)*r,t:-Math.random()*.25,T:.9,life:4,s:.7+Math.random()*.9,rx:Math.random()*6,ry:Math.random()*6}); } }
+function dust(x,z,r){ const m=new THREE.Mesh(new THREE.RingGeometry(.5,3,32).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:0xa08a68,transparent:true,opacity:.7,depthWrite:false,fog:false})); m.position.set(x,H(x,z)+.6,z); m.renderOrder=3; IY.scene.add(m); dusts.push({m,t:0,r}); }
+function drawRocks(dt){ if(!OB.rockMesh) return; let n=0; for(let i=rockFx.length-1;i>=0;i--){ const R=rockFx[i]; R.t+=dt; if(R.t>R.T+R.life){ rockFx.splice(i,1); continue; } if(R.t<0) continue;
+    const k=Math.min(1,R.t/R.T),g=H(R.x,R.z),y=g+R.s*.6+(1-k*k)*28; _q.setFromEuler(new THREE.Euler(R.rx+R.t*(k<1?6:0),R.ry,0)); const sc=R.t>R.T+R.life-.6?Math.max(.01,(R.T+R.life-R.t)/.6)*R.s:R.s; _m.compose(_v2.set(R.x,y,R.z),_q,_s.set(sc,sc,sc)); OB.rockMesh.setMatrixAt(n++,_m); }
+  _s.set(1,1,1); OB.rockMesh.count=n; if(n) OB.rockMesh.instanceMatrix.needsUpdate=true;
+  for(let i=dusts.length-1;i>=0;i--){ const D=dusts[i]; D.t+=dt; const k=D.t/1.2; if(k>=1){ IY.scene.remove(D.m); D.m.geometry.dispose(); D.m.material.dispose(); dusts.splice(i,1); continue; } const sc=1+k*D.r/2.2; D.m.scale.set(sc,1,sc); D.m.material.opacity=.7*(1-k); } }
+
 /* 進軍ルートを地面に薄く描く */
 function drawRoutes(){ OB.routeLines=[]; for(const r of MAP.routes){ const pts=[]; for(let i=1;i<r.pts.length;i++){ const [ax,az]=r.pts[i-1],[bx,bz]=r.pts[i],L=Math.hypot(bx-ax,bz-az); for(let t=0;t<L;t+=2){ const x=ax+(bx-ax)*t/L,z=az+(bz-az)*t/L; pts.push(new THREE.Vector3(x,H(x,z)+.6,z)); } }
   const g=new THREE.BufferGeometry().setFromPoints(pts); const ln=new THREE.Line(g,new THREE.LineDashedMaterial({color:0xd0402c,dashSize:3,gapSize:2.2,transparent:true,opacity:.75,fog:false})); ln.computeLineDistances(); IY.scene.add(ln); OB.routeLines.push(ln); } }
@@ -162,12 +172,12 @@ root.innerHTML=`
 <header id="obTop">
   <div class="obBox obTitle"><b>${MAP.title}</b><span id="obGoal">${MAP.goal} <em id="obTime">--:--</em></span></div>
   <div id="obWave" class="obBox">出陣前</div>
-  <div class="obBtns"><button id="obSpd" class="obBtn" aria-label="速さ">×1</button><button id="obPause" class="obBtn" aria-label="一時停止">❚❚</button></div>
+  <div class="obBtns"><button id="obSnd" class="obBtn" aria-label="効果音">🔊</button><button id="obSpd" class="obBtn" aria-label="速さ">×1</button><button id="obPause" class="obBtn" aria-label="一時停止">❚❚</button></div>
 </header>
 <div id="obLines"></div>
 <div id="obToast"></div>
 <div id="obPaused" hidden><b>一時停止中</b><span>部隊のアイコンや下の札をタップして指示</span><button class="obBtn obGo" id="obResume">▶ 再開</button></div>
-<div id="obPrompt" hidden><span id="obPromptT"></span><button class="obBtn" id="obHere" hidden>その場で守る</button><button class="obBtn" id="obCancel">やめる</button></div>
+<div id="obPrompt" hidden><span id="obPromptT"></span><em id="obPromptI"></em><button class="obBtn obGo" id="obOK" disabled>決定</button><button class="obBtn" id="obHere" hidden>その場で守る</button><button class="obBtn" id="obCancel">やめる</button></div>
 <section id="obOrder" hidden>
   <div class="obOH"><span id="obOName"></span><button class="obX" id="obOClose" aria-label="閉じる">✕</button></div>
   <div class="obOS" id="obOStat"></div>
@@ -177,12 +187,16 @@ root.innerHTML=`
     <button data-o="intercept"><b>迎撃</b><small>敵の部隊を狙う</small></button>
     <button data-o="auto"><b>任せる</b><small>自分で判断</small></button>
     <button data-o="retreat"><b>退却</b><small>次の曲輪へ</small></button>
+    <button data-o="skill" id="obSkillB" class="obSkill"><b>特技</b><small></small></button>
   </div>
 </section>
+<div id="obSaku"><div class="sg"><b>采配</b><span id="obSG"></span></div>
+  <button data-s="kobu"><b>鼓舞</b><small>采配1</small></button><button data-s="rakuseki"><b>落石</b><small>采配2</small></button><button data-s="gate"><b>門を閉ざす</b><small>采配2</small></button></div>
+<div id="obGates"></div>
 <footer id="obCards"></footer>
 <div id="obHud" hidden></div>
 <section id="obModal" class="obModal" hidden></section>`;
-const UI={sel:null,mode:null,pauseManual:false,pauseOrder:false,speed:1,icons:new Map(),cards:new Map(),toastQ:[]};
+const UI={sel:null,mode:null,pend:null,pauseManual:false,pauseOrder:false,speed:1,icons:new Map(),cards:new Map(),toastQ:[]};
 
 /* 防衛線の表示 */
 function buildLines(){ const L=$('obLines'); L.innerHTML=MAP.lines.map((l,i)=>`<span data-i="${i}">${l.short}</span>`).join('<i>›</i>')+'<i>›</i><span class="hon">本丸</span>'; }
@@ -203,8 +217,9 @@ function updIcons(battle){
     I.style.transform=`translate3d(${p[0].toFixed(1)}px,${p[1].toFixed(1)}px,0)`;
     const men=u.men; if(I._men!==men){ I._men=men; I.children[1].textContent=men; }
     const mo=Math.round(u.morale/5)*5; if(I._mo!==mo){ I._mo=mo; I.children[2].firstChild.style.width=mo+'%'; I.classList.toggle('low',mo<35); }
-    const st=(u.state==='rout'?'r':'')+(u.flank?'f':'')+(u===UI.sel?'s':'')+(UI.mode==='intercept'&&u.side==='enemy'?'t':'')+(UI.mode==='reinforce'&&u.side==='ally'&&u!==UI.sel?'t':'');
-    if(I._st!==st){ I._st=st; I.classList.toggle('rout',u.state==='rout'); I.classList.toggle('flank',!!u.flank); I.classList.toggle('sel',u===UI.sel); I.classList.toggle('target',st.includes('t')); }
+    const bf=B&&((u.buff&&B.time<u.buff.until)||u.kobuUntil>B.time);
+    const st=(bf?'b':'')+(u.state==='rout'?'r':'')+(u.flank?'f':'')+(u===UI.sel?'s':'')+(UI.mode==='intercept'&&u.side==='enemy'?'t':'')+(UI.mode==='reinforce'&&u.side==='ally'&&u!==UI.sel?'t':'');
+    if(I._st!==st){ I._st=st; I.classList.toggle('rout',u.state==='rout'); I.classList.toggle('flank',!!u.flank); I.classList.toggle('sel',u===UI.sel); I.classList.toggle('target',st.includes('t')); I.classList.toggle('buff',st.includes('b')); }
     if(u.side==='ally'){ const o=u.state==='rout'?'走':ORD[u.order&&(u.order.retreat?'retreat':u.order.kind)]||''; if(I._o!==o){ I._o=o; I.querySelector('.o').textContent=o; } }
   } }
 /* 下の札（味方の部隊） */
@@ -219,68 +234,163 @@ function orderText(u){ const o=u.order||{}; if(o.retreat) return '退却 → '+(
 
 /* 配置場所の札（守備の指示のときに出す） */
 function buildMarks(){ const M=$('obMarks'); M.innerHTML=''; OB.marks=[];
-  for(const s of MAP.slots){ const k=s.kind==='gate'?'門':s.kind==='yagura'?'櫓 弓の射程↑':'石垣 弓の射程↑'; const m=el('button','obMark k-'+s.kind,`◆ ${s.name}<small>${k}</small>`); m.onclick=e=>{ e.stopPropagation(); if(UI.mode==='hold') issue({kind:'hold',slot:B.slots.find(q=>q.id===s.id)}); }; M.appendChild(m); OB.marks.push([s,m]); } }
+  for(const s of MAP.slots){ const k=s.kind==='gate'?'門':s.kind==='yagura'?'櫓 弓の射程↑':'石垣 弓の射程↑'; const m=el('button','obMark k-'+s.kind,`◆ ${s.name}<small>${k}</small>`); m.onclick=e=>{ e.stopPropagation(); if(UI.mode==='hold'){ const sl=B.slots.find(q=>q.id===s.id); setPend({x:sl.pos[0],z:sl.pos[1],slot:sl}); } }; M.appendChild(m); OB.marks.push([s,m]); } }
 function updMarks(){ const on=UI.mode==='hold'; $('obMarks').hidden=!on; if(!on) return; for(const [s,m] of OB.marks){ const p=project(s.pos[0],H(s.pos[0],s.pos[1])+2,s.pos[1]); if(!p){ m.style.display='none'; continue; } m.style.display=''; m.style.transform=`translate3d(${p[0]|0}px,${p[1]|0}px,0)`; } }
 
-/* ================= 指示（時間を止める） ================= */
+/* ================= 指示（時間を止める）・特技・策 =================
+   行き先や相手をタップすると、まず移動ルートを地面に描いて見せ、「決定」で指示を出す */
+const SKL=SIM.SKILLS,SAKU=SIM.SAKU;
 function paused(){ return UI.pauseManual||UI.pauseOrder||!$('obModal').hidden||!B||B.state!=='run'; }
 function tapUnit(u){
   if(!B||B.state!=='run') return;
-  if(UI.mode==='reinforce'&&u.side==='ally'&&u!==UI.sel){ issue({kind:'reinforce',target:u.id}); return; }
-  if(UI.mode==='intercept'&&u.side==='enemy'){ issue({kind:'intercept',target:u.id}); return; }
+  if(UI.mode==='reinforce'){ if(u.side==='ally'&&u!==UI.sel&&u.state!=='dead') setPend({target:u}); return; }
+  if(UI.mode==='intercept'){ if(u.side==='enemy') setPend({target:u}); return; }
+  if(UI.mode==='kobu'){ if(u.side==='ally'&&u.state!=='dead') setPend({target:u}); return; }
+  if(UI.mode) return;
   if(u.side==='enemy'){ toast(`敵 ${u.name}（${T[u.type].name}）${u.men}人・士気${Math.round(u.morale)}${u.boss?'・大将':''}`,'info'); return; }
   if(u.state==='dead') return;
-  if(u.state==='rout'){ toast(u.name+'は敗走中。立ち直るまで指示できない','info'); return; }
-  UI.sel=u; UI.mode=null; if(!UI.pauseManual) UI.pauseOrder=true; showOrder(); }
+  if(u.state==='rout'){ toast(u.name+'は敗走中。立ち直るまで指示できない（策「鼓舞」で立ち直る）','info'); return; }
+  sfx('click'); UI.sel=u; if(!UI.pauseManual) UI.pauseOrder=true; showOrder(); }
 function showOrder(){ const u=UI.sel; $('obPrompt').hidden=true; $('obOrder').hidden=false;
   $('obOName').innerHTML=`<span class="k t-${u.base}">${T[u.type].short}</span>${u.name}${u.gen?'<small>（'+u.gen+'）</small>':''}`;
   const beat=T[SIM.BEATS[u.base]].name, lose=T[Object.keys(SIM.BEATS).find(k=>SIM.BEATS[k]===u.base)].name;
-  $('obOStat').innerHTML=`${T[u.type].name} ${u.men}人 ・ 士気 ${Math.round(u.morale)} ・ ${orderText(u)}<br><small>${beat}に強い／${lose}に弱い</small>`; }
-function startMode(m){ UI.mode=m; $('obOrder').hidden=true; $('obPrompt').hidden=false; $('obHere').hidden=m!=='hold';
-  $('obPromptT').textContent=m==='hold'?'守る場所をタップ（◆の配置場所は地形の効果あり）':m==='reinforce'?'援軍に行く味方の部隊をタップ':'狙う敵の部隊をタップ'; }
-function issue(o){ if(!UI.sel) return finish(); const ok=B.order(UI.sel.id,o); if(!ok) toast('その指示は出せない','info'); else sfxOrder(o); finish(); }
-function finish(){ UI.mode=null; UI.sel=null; UI.pauseOrder=false; $('obOrder').hidden=true; $('obPrompt').hidden=true; }
-function sfxOrder(o){ const u=UI.sel; if(!u) return; const t={hold:'守備につけ',reinforce:'援軍に向かえ',intercept:'迎え撃て',auto:'任せたぞ',retreat:'退け'}[o.kind]; toast(u.name+'「'+t+'」','order'); }
-$('obOrder').querySelectorAll('button[data-o]').forEach(b=>b.onclick=()=>{ const o=b.dataset.o; if(o==='auto'||o==='retreat') issue({kind:o}); else startMode(o); });
-$('obOClose').onclick=finish; $('obCancel').onclick=finish;
+  $('obOStat').innerHTML=`${T[u.type].name} ${u.men}人 ・ 士気 ${Math.round(u.morale)} ・ ${orderText(u)}<br><small>${beat}に強い／${lose}に弱い</small>`;
+  const S=B.skillOf(u),w=B.skillWait(u),act=B.buff(u,u.type),bt=$('obSkillB');
+  bt.querySelector('b').textContent=S.name; bt.querySelector('small').textContent=act?'発動中':w>0?'あと'+Math.ceil(w)+'秒':'特技・使える'; bt.disabled=w>0; bt.title=S.text; }
+const MODE_T={hold:'守る場所をタップ（◆の配置場所は地形の効果あり）',reinforce:'援軍に行く味方の部隊をタップ',intercept:'狙う敵の部隊をタップ',
+  kobu:'鼓舞する味方の部隊をタップ',rakuseki:'石を落とす場所をタップ（赤い円の中の敵に効く）',gate:'閉じる門をタップ'};
+function startMode(m){ UI.mode=m; UI.pend=null; clearPrev(); $('obOrder').hidden=true; $('obPrompt').hidden=false; $('obHere').hidden=m!=='hold';
+  $('obPromptT').textContent=MODE_T[m]; $('obPromptI').textContent=''; $('obOK').disabled=true; sfx('click'); }
+/* 選んだ行き先・相手を仮決めして、ルートを描く */
+function setPend(p){ UI.pend=p; $('obOK').disabled=false; sfx('click'); drawPreview(); }
+function confirmPend(){ const m=UI.mode,p=UI.pend; if(!m||!p) return; let ok=false;
+  if(m==='hold') ok=B.order(UI.sel.id,{kind:'hold',x:p.x,z:p.z,slot:p.slot});
+  else if(m==='reinforce') ok=B.order(UI.sel.id,{kind:'reinforce',target:p.target.id});
+  else if(m==='intercept') ok=B.order(UI.sel.id,{kind:'intercept',target:p.target.id});
+  else if(m==='kobu') ok=B.useSaku('kobu',{target:p.target.id});
+  else if(m==='rakuseki') ok=B.useSaku('rakuseki',{x:p.x,z:p.z});
+  else if(m==='gate') ok=B.useSaku('gate',{gate:p.gate});
+  if(!ok) toast('その指示は出せない','info'); else if(UI.sel) sayOrder(m); finish(); }
+function issue(o){ if(!UI.sel) return finish(); const ok=B.order(UI.sel.id,o); if(!ok) toast('その指示は出せない','info'); else sayOrder(o.kind); finish(); }
+function finish(){ UI.mode=null; UI.pend=null; UI.sel=null; UI.pauseOrder=false; $('obOrder').hidden=true; $('obPrompt').hidden=true; clearPrev(); }
+function sayOrder(k){ const u=UI.sel; if(!u) return; const t={hold:'守備につけ',reinforce:'援軍に向かえ',intercept:'迎え撃て',auto:'任せたぞ',retreat:'退け'}[k]; if(t) toast(u.name+'「'+t+'」','order'); sfx('hyoshigi'); }
+function useSkill(){ const u=UI.sel; if(!u) return; if(B.useSkill(u.id)){ toast(`${u.name}「${B.skillOf(u).name}！」`,'order'); } finish(); }
+function tapSaku(k){ if(!B||B.state!=='run'||bench) return; if(B.saihai<SAKU[k].cost){ toast(`采配が足りない（${SAKU[k].name}は${SAKU[k].cost}）。采配は時間とともにたまる`,'info'); return; }
+  if(k==='gate'&&!B.gates.some(g=>B.gateOpenAt(g))){ toast('閉じられる門がない','info'); return; }
+  finish(); UI.sel=null; if(!UI.pauseManual) UI.pauseOrder=true; startMode(k); $('obPromptT').textContent=SAKU[k].name+'：'+MODE_T[k]; }
+$('obOrder').querySelectorAll('button[data-o]').forEach(b=>b.onclick=()=>{ const o=b.dataset.o; if(o==='skill') useSkill(); else if(o==='auto'||o==='retreat') issue({kind:o}); else startMode(o); });
+$('obSaku').querySelectorAll('button[data-s]').forEach(b=>b.onclick=()=>tapSaku(b.dataset.s));
+$('obOClose').onclick=finish; $('obCancel').onclick=finish; $('obOK').onclick=confirmPend;
 $('obHere').onclick=()=>{ const u=UI.sel; if(u) issue({kind:'hold',x:u.x,z:u.z}); };
-$('obPause').onclick=()=>{ if(!B||B.state!=='run') return; UI.pauseManual=!UI.pauseManual; if(!UI.pauseManual) finish(); };
+$('obPause').onclick=()=>{ if(!B||B.state!=='run') return; sfx('click'); UI.pauseManual=!UI.pauseManual; if(!UI.pauseManual) finish(); };
 $('obResume').onclick=()=>{ UI.pauseManual=false; finish(); };
 $('obSpd').onclick=()=>{ UI.speed=UI.speed===1?2:UI.speed===2?4:1; $('obSpd').textContent='×'+UI.speed; };
+$('obSnd').onclick=()=>{ const on=SND.toggle(); $('obSnd').textContent=on?'🔊':'🔇'; if(on) sfx('click'); };
+function tapGround(x,z){
+  if(UI.mode==='hold'){ const sl=B.slotNear(x,z,9); setPend(sl?{x:sl.pos[0],z:sl.pos[1],slot:sl}:{x,z}); return; }
+  if(UI.mode==='rakuseki'){ setPend({x,z}); return; }
+  if(UI.mode==='gate'){ let b=-1,bd=18; B.gates.forEach((g,i)=>{ const d=Math.hypot(g.pos[0]-x,g.pos[1]-z); if(d<bd&&B.gateOpenAt(g)){ bd=d; b=i; } }); if(b>=0) setPend({gate:b}); return; }
+  if(UI.sel&&!UI.mode) finish(); }
 
-/* ================= 画面の操作（ドラッグで移動・2本指で拡大と回転） ================= */
-{ const V=$('obView'),pts=new Map(); let tap=null,last=null;
-  V.addEventListener('pointerdown',e=>{ try{ V.setPointerCapture(e.pointerId); }catch(_){} pts.set(e.pointerId,{x:e.clientX,y:e.clientY,b:e.button,sh:e.shiftKey}); if(pts.size===1) tap={x:e.clientX,y:e.clientY,t:performance.now()}; else tap=null; last=null; });
-  V.addEventListener('pointermove',e=>{ const p=pts.get(e.pointerId); if(!p) return; const k=CAM.dist*1.1/innerHeight;
-    if(pts.size===1){ const dx=e.clientX-p.x,dy=e.clientY-p.y; if(tap&&Math.hypot(e.clientX-tap.x,e.clientY-tap.y)>9) tap=null;
-      if(p.b===2||p.sh){ CAM.yaw-=dx*.006; }
-      else { const c=Math.cos(CAM.yaw),s=Math.sin(CAM.yaw); CAM.x-=(c*dx+s*dy*1.3)*k; CAM.z-=(-s*dx+c*dy*1.3)*k; } }
-    p.x=e.clientX; p.y=e.clientY;
-    if(pts.size===2){ const [a,b]=[...pts.values()],d=Math.hypot(a.x-b.x,a.y-b.y),ang=Math.atan2(b.y-a.y,b.x-a.x),mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
-      if(last){ CAM.dist*=last.d/d; let da=ang-last.a; if(da>Math.PI) da-=2*Math.PI; if(da<-Math.PI) da+=2*Math.PI; CAM.yaw-=da; const dx=mx-last.mx,dy=my-last.my,c=Math.cos(CAM.yaw),s=Math.sin(CAM.yaw); CAM.x-=(c*dx+s*dy*1.3)*k; CAM.z-=(-s*dx+c*dy*1.3)*k; }
-      last={d,a:ang,mx,my}; } });
-  const up=e=>{ const had=pts.has(e.pointerId); pts.delete(e.pointerId); last=null; if(!had) return;
-    if(tap&&pts.size===0&&performance.now()-tap.t<450){ const g=groundAt(e.clientX,e.clientY); if(g) tapGround(g[0],g[1]); } tap=null; };
-  V.addEventListener('pointerup',up); V.addEventListener('pointercancel',up);
-  V.addEventListener('wheel',e=>{ e.preventDefault(); CAM.dist*=Math.exp(e.deltaY*.0012); },{passive:false});
-  V.addEventListener('contextmenu',e=>e.preventDefault());
-  addEventListener('keydown',e=>{ if(e.code==='Space'){ $('obPause').click(); e.preventDefault(); } if(e.key==='q') CAM.yaw+=.1; if(e.key==='e') CAM.yaw-=.1; });
-}
-function tapGround(x,z){ if(UI.mode==='hold'){ issue({kind:'hold',x,z}); return; } if(UI.sel&&!UI.mode) finish(); }
+/* ---------- ルートの下見（地面に描く帯） ---------- */
+const PREV=new THREE.Group(); PREV.renderOrder=20; IY.scene.add(PREV);
+function clearPrev(){ for(const o of [...PREV.children]){ PREV.remove(o); o.geometry.dispose(); o.material.dispose(); } }
+function ribbon(pts,w,color,op,arrow){ /* pts: [[x,z],...] を1.5m刻みにして地面の上に帯を作る */
+  const P=[]; for(let i=1;i<pts.length;i++){ const [ax,az]=pts[i-1],[bx,bz]=pts[i],L=Math.hypot(bx-ax,bz-az),n=Math.max(1,Math.ceil(L/1.5)); for(let k=(i===1?0:1);k<=n;k++) P.push([ax+(bx-ax)*k/n,az+(bz-az)*k/n]); }
+  if(P.length<2) return; const pos=[],idx=[];
+  for(let i=0;i<P.length;i++){ const a=P[Math.max(0,i-1)],c=P[Math.min(P.length-1,i+1)]; let dx=c[0]-a[0],dz=c[1]-a[1]; const l=Math.hypot(dx,dz)||1; dx/=l; dz/=l; const y=H(P[i][0],P[i][1])+.8;
+    pos.push(P[i][0]-dz*w,y,P[i][1]+dx*w, P[i][0]+dz*w,y,P[i][1]-dx*w); if(i) idx.push(2*i-2,2*i-1,2*i, 2*i-1,2*i+1,2*i); }
+  if(arrow){ const n=P.length-1,a=P[Math.max(0,n-2)],e=P[n]; let dx=e[0]-a[0],dz=e[1]-a[1]; const l=Math.hypot(dx,dz)||1; dx/=l; dz/=l; const y=H(e[0],e[1])+.9,b=pos.length/3;
+    pos.push(e[0]-dz*w*2.6,y,e[1]+dx*w*2.6, e[0]+dz*w*2.6,y,e[1]-dx*w*2.6, e[0]+dx*w*3.4,y,e[1]+dz*w*3.4); idx.push(b,b+1,b+2); }
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setIndex(idx);
+  const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color,transparent:true,opacity:op||.9,depthTest:false,depthWrite:false,side:THREE.DoubleSide,fog:false,toneMapped:false})); m.renderOrder=20; m.frustumCulled=false; PREV.add(m); return P; }
+function circle(x,z,r,color,w){ const pts=[]; for(let i=0;i<=40;i++){ const a=i/40*Math.PI*2; pts.push([x+Math.cos(a)*r,z+Math.sin(a)*r]); } ribbon(pts,w||.5,color,.85); }
+function plen(P){ let L=0; for(let i=1;i<P.length;i++) L+=Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1]); return L; }
+function drawPreview(){ clearPrev(); const m=UI.mode,p=UI.pend,u=UI.sel; if(!p) return; let info='';
+  const gold=0xffcf5a,red=0xff5a40,blue=0x8fb7ff;
+  if(u&&(m==='hold'||m==='reinforce'||m==='intercept')){
+    const tx=p.target?p.target.x:p.x,tz=p.target?p.target.z:p.z;
+    const path=[[u.x,u.z]].concat(SIM.navPath(B.nav,u.x,u.z,tx,tz,H)); ribbon(path,1.1,gold,.92,true);
+    const sec=Math.round(plen(path)/T[u.type].speed*1.15);
+    if(m==='intercept'){ const e=p.target; circle(e.x,e.z,7,red);
+      /* 敵がこれから進む道（赤） */
+      if(e.route){ const r=e.route,ahead=[[e.x,e.z]]; let L=0; for(let i=e.ri;i<r.pts.length&&L<70;i++){ const q=r.pts[i],pr=ahead[ahead.length-1]; L+=Math.hypot(q[0]-pr[0],q[1]-pr[1]); ahead.push(q); } if(ahead.length>1) ribbon(ahead,.7,red,.75,true); }
+      const adv=SIM.BEATS[u.base]===e.base?'<b class="good">有利</b>':SIM.BEATS[e.base]===u.base?'<b class="bad">不利</b>':'互角';
+      info=`${T[e.type].name} ${e.men}人（${adv}）・ぶつかるまで 約${sec}秒（敵も動きます）`; }
+    else if(m==='reinforce'){ circle(tx,tz,7,blue); info=`${p.target.name}のもとへ・到着まで 約${sec}秒`; }
+    else { circle(tx,tz,6,gold); info=(p.slot?`◆${p.slot.name}（${p.slot.kind==='gate'?'門':p.slot.kind==='yagura'?'櫓：弓の射程1.35倍':'石垣：弓の射程1.25倍'}）・`:'')+`到着まで 約${sec}秒`; } }
+  else if(m==='rakuseki'){ circle(p.x,p.z,11,red,.7); const n=B.live('enemy').filter(e=>Math.hypot(e.x-p.x,e.z-p.z)<11).length; info=n?`いま円の中に敵 ${n}部隊`:'円の中に敵はいない（通り道に置くのも手）'; }
+  else if(m==='gate'){ const g=B.gates[p.gate]; circle(g.pos[0],g.pos[1],g.r+3,red); info=`${g.name}を${B.C.gateTime}秒閉じる`; }
+  else if(m==='kobu'){ const t=p.target; circle(t.x,t.z,7,blue); info=`${t.name}（士気${Math.round(t.morale)}${t.state==='rout'?'・敗走中':''}）`; }
+  $('obPromptI').innerHTML=info; }
+
+/* 門の札（閉じた門の耐久・門を選ぶとき） */
+const GMK=[]; MAP.narrow&&MAP.narrow.forEach((g,i)=>{ const m=el('button','obGate',`<b>${g.name||'門'}</b><i><s></s></i>`); m.onclick=e=>{ e.stopPropagation(); if(UI.mode==='gate'&&B&&B.gateOpenAt(B.gates[i])) setPend({gate:i}); }; $('obGates').appendChild(m); GMK.push(m); });
+function updGates(){ if(!B||bench){ for(const m of GMK) m.style.display='none'; return; }
+  B.gates.forEach((g,i)=>{ const m=GMK[i],closed=!B.gateOpenAt(g),show=closed||UI.mode==='gate'; if(!show){ m.style.display='none'; return; }
+    const p=project(g.pos[0],H(g.pos[0],g.pos[1])+5,g.pos[1]); if(!p){ m.style.display='none'; return; } m.style.display=''; m.style.transform=`translate3d(${p[0]|0}px,${p[1]|0}px,0)`;
+    m.classList.toggle('closed',closed); m.classList.toggle('pick',UI.mode==='gate'&&!closed); m.querySelector('s').style.width=closed?Math.max(0,g.hp)/B.C.gateHP*100+'%':'0';
+    m.querySelector('b').textContent=(closed?'閉 ':'')+g.name+(closed?' '+Math.ceil(g.until-B.time)+'秒':''); }); }
+function updSaku(){ if(!B||bench) return; const v=B.saihai,mx=B.C.saihaiMax; let h=''; for(let i=0;i<mx;i++){ const f=Math.max(0,Math.min(1,v-i)); h+=`<i style="--f:${f}"></i>`; } const G=$('obSG'); if(G._v!==h){ G._v=h; G.innerHTML=h; }
+  $('obSaku').querySelectorAll('button[data-s]').forEach(b=>b.classList.toggle('off',v<SAKU[b.dataset.s].cost)); }
+
+/* ================= 効果音（音のファイルを使わず、その場で合成する） ================= */
+const SND=(()=>{ let ctx=null,master=null,noise=null,on=true; try{ on=localStorage.getItem('oshiroBattle.snd')!=='off'; }catch(e){}
+  const last={};
+  function init(){ try{ if(ctx){ if(ctx.state==='suspended') ctx.resume(); return; } const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return; ctx=new AC();
+    master=ctx.createGain(); master.gain.value=on?.75:0; const comp=ctx.createDynamicsCompressor(); master.connect(comp).connect(ctx.destination);
+    const len=ctx.sampleRate*2; noise=ctx.createBuffer(1,len,ctx.sampleRate); const d=noise.getChannelData(0); for(let i=0;i<len;i++) d[i]=Math.random()*2-1;
+    const b=ctx.createBuffer(1,1,22050),s=ctx.createBufferSource(); s.buffer=b; s.connect(ctx.destination); s.start(0); }catch(e){} }
+  /* iPhoneは画面に触れたときにしか音を出せないので、最初のタッチで準備する */
+  for(const ev of ['pointerdown','touchend','keydown']) addEventListener(ev,init,{capture:true,passive:true});
+  const E=(g,t,a,pk,dec)=>{ g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(Math.max(.0002,pk),t+a); g.gain.exponentialRampToValueAtTime(.0001,t+a+dec); };
+  function osc(type,f,t,dur,pk,f2,a){ a=a||.004; const o=ctx.createOscillator(),g=ctx.createGain(); o.type=type; o.frequency.setValueAtTime(f,t); if(f2) o.frequency.exponentialRampToValueAtTime(f2,t+a+dur); E(g,t,a,pk,dur); o.connect(g).connect(master); o.start(t); o.stop(t+a+dur+.05); }
+  function nz(t,dur,pk,type,f,q,f2,a){ a=a||.003; const s=ctx.createBufferSource(); s.buffer=noise; const fl=ctx.createBiquadFilter(); fl.type=type; fl.frequency.setValueAtTime(f,t); if(f2) fl.frequency.exponentialRampToValueAtTime(f2,t+a+dur); fl.Q.value=q||1; const g=ctx.createGain(); E(g,t,a,pk,dur); s.connect(fl).connect(g).connect(master); s.start(t,Math.random()*1.4); s.stop(t+a+dur+.05); }
+  const S={
+    taiko(d,v){ const t=ctx.currentTime+(d||0); v=v||1; osc('sine',105,t,.6,.95*v,44); osc('sine',180,t,.12,.25*v,90); nz(t,.1,.35*v,'lowpass',500,1); },
+    horagai(dur,v){ const t=ctx.currentTime; dur=dur||1.7; v=v||1; const fl=ctx.createBiquadFilter(),g=ctx.createGain(),l=ctx.createOscillator(),lg=ctx.createGain(); fl.type='lowpass'; fl.frequency.value=900; fl.Q.value=3;
+      g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(.32*v,t+.3); g.gain.setValueAtTime(.32*v,t+dur*.75); g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+      l.frequency.value=5.5; lg.gain.value=3; l.connect(lg); for(const [m,k] of [[1,1],[2.005,.35]]){ const o=ctx.createOscillator(),og=ctx.createGain(); o.type='sawtooth'; o.frequency.setValueAtTime(185*m,t); o.frequency.linearRampToValueAtTime(220*m,t+.35); o.frequency.setValueAtTime(220*m,t+dur*.7); o.frequency.linearRampToValueAtTime(196*m,t+dur); lg.connect(o.frequency); og.gain.value=k; o.connect(og).connect(fl); o.start(t); o.stop(t+dur+.05); }
+      fl.connect(g).connect(master); l.start(t); l.stop(t+dur+.05); },
+    bell(d,f,v){ const t=ctx.currentTime+(d||0); f=f||560; v=v||1; osc('sine',f,t,2.2,.32*v); osc('sine',f*2.76,t,1.2,.12*v); osc('sine',f*5.4,t,.6,.06*v); nz(t,.03,.15*v,'highpass',3000,1); },
+    hyoshigi(){ const t=ctx.currentTime; for(const d of [0,.14]){ osc('triangle',2100,t+d,.07,.45,1500); nz(t+d,.05,.3,'bandpass',2600,6); } },
+    click(){ const t=ctx.currentTime; osc('sine',1100,t,.04,.12,700); },
+    arrow(v){ const t=ctx.currentTime; v=v||1; nz(t,.34,.22*v,'bandpass',3600,2.5,900,.02); nz(t+.3,.05,.12*v,'lowpass',900,1); },
+    clash(v){ const t=ctx.currentTime; v=v||1; const f=900+Math.random()*500; for(const [m,k] of [[1,.22],[2.71,.12],[4.1,.07]]) osc('sine',f*m,t,.16,k*v); nz(t,.05,.25*v,'highpass',2500,1); nz(t,.18,.12*v,'lowpass',700,1); },
+    rumble(){ const t=ctx.currentTime; nz(t,1.4,.7,'lowpass',260,1,120,.08); for(const d of [.05,.25,.5,.8]) S.taiko(d,.55); },
+    gate(){ const t=ctx.currentTime; osc('sine',72,t,.5,.9,38); nz(t,.25,.5,'lowpass',700,1); osc('triangle',900,t+.02,.05,.2,500); },
+    gateBreak(){ const t=ctx.currentTime; nz(t,.9,.8,'lowpass',1200,1,200,.01); osc('sine',60,t,.7,.9,30); },
+    rout(){ const t=ctx.currentTime; osc('sine',150,t,.7,.5,60); },
+    charge(){ S.taiko(0,.9); S.taiko(.12,.9); const t=ctx.currentTime; nz(t,.6,.25,'bandpass',500,1,2200,.05); },
+    win(){ for(const d of [0,.35,.7,.85,1.0,1.4]) S.taiko(d,1); setTimeout(()=>S.horagai(2.2,1),1700); },
+    lose(){ for(const d of [0,1.3,2.6]) S.bell(d,330,1.1); }
+  };
+  return { play(k,a,b,c){ if(!ctx||!on||!S[k]) return; try{ S[k](a,b,c); }catch(e){} },
+    ok(k,gap){ if(!ctx||!on) return false; const t=ctx.currentTime; if(last[k]!==undefined&&t-last[k]<gap) return false; last[k]=t; return true; },
+    toggle(){ on=!on; try{ localStorage.setItem('oshiroBattle.snd',on?'on':'off'); }catch(e){} init(); if(master) master.gain.value=on?.75:0; return on; }, get on(){ return on; } };
+})();
+function sfx(k,gap,a,b){ if(SND.ok(k,gap||0)) SND.play(k,a,b); }
+const vol=()=>Math.max(.25,Math.min(1,140/CAM.dist));
 
 /* ================= お知らせ ================= */
 function toast(msg,kind){ const t=$('obToast'),d=el('div','obT '+(kind||''),msg); t.appendChild(d); while(t.children.length>4) t.firstChild.remove(); setTimeout(()=>d.classList.add('out'),kind==='big'?3800:2600); setTimeout(()=>d.remove(),kind==='big'?4600:3300); }
 function onEvents(b){
   for(const e of b.events.splice(0)){
-    if(e.k==='volley') volley(e.a,e.b);
-    else if(e.k==='wave'){ toast(`<b>第${'一二三四五'[e.i]}波　${e.label}</b>${e.text||''}`,'big'); }
-    else if(e.k==='boss'&&!bench){ toast(`敵の大将 <b>${e.u.gen||e.u.name}</b> 出陣${MAP.enemy.boss&&MAP.enemy.boss.skill?'（特技：'+MAP.enemy.boss.skill.name+'）':''}`,'warn'); }
-    else if(e.k==='line'&&!bench){ toast(`防衛線「${e.name}」を破られた！`,'warn'); setLines(e.i); }
-    else if(e.k==='rout'&&!bench){ toast(e.u.side==='ally'?`${e.u.name}が敗走！`:`敵の${T[e.u.type].name}が敗走`,e.u.side==='ally'?'warn':'good'); }
+    if(e.k==='volley'){ volley(e.a,e.b); if(!bench) sfx('arrow',.22,vol()*(e.a.side==='ally'?1:.75)); }
+    else if(e.k==='skill'){ sfx(e.u.base==='kiba'?'charge':'taiko'); }
+    else if(e.k==='chargeHit'){ sfx('clash',.1,1); sfx('taiko',.2,0,.7); }
+    else if(e.k==='saku'){ if(e.kind==='kobu'){ sfx('taiko'); sfx('horagai',0,.8,.6); toast('鼓舞！士気が上がった','good'); } else if(e.kind==='rakuseki'){ dropRocks(e.a.x,e.a.z); sfx('taiko'); } else if(e.kind==='gate'){ sfx('gate'); toast(`${B.gates[e.a.gate].name}を閉ざした`,'good'); } }
+    else if(e.k==='rock'){ dust(e.x,e.z,e.r); sfx('rumble'); if(e.hits) toast(`落石！敵${e.hits}部隊に当たった`,'good'); }
+    else if(e.k==='gateBroken'&&!bench){ sfx('gateBreak'); toast(`${e.g.name}が破られた！`,'warn'); }
+    else if(e.k==='gateOpen'&&!bench){ sfx('gate'); toast(`${e.g.name}が開いた`,'info'); }
+    else if(e.k==='wave'){ sfx('horagai'); sfx('taiko',0,1.6); toast(`<b>第${'一二三四五'[e.i]}波　${e.label}</b>${e.text||''}`,'big'); }
+    else if(e.k==='boss'&&!bench){ sfx('horagai',3,2.4,1); toast(`敵の大将 <b>${e.u.gen||e.u.name}</b> 出陣${MAP.enemy.boss&&MAP.enemy.boss.skill?'（特技：'+MAP.enemy.boss.skill.name+'）':''}`,'warn'); }
+    else if(e.k==='line'&&!bench){ for(const d of [0,.35,.7]) SND.play('bell',d,700,.9); toast(`防衛線「${e.name}」を破られた！`,'warn'); setLines(e.i); }
+    else if(e.k==='rout'&&!bench){ sfx(e.u.side==='ally'?'rout':'taiko',.3); toast(e.u.side==='ally'?`${e.u.name}が敗走！`:`敵の${T[e.u.type].name}が敗走`,e.u.side==='ally'?'warn':'good'); }
     else if(e.k==='rally'&&!bench){ toast(`${e.u.name}が立ち直った`,'info'); }
     else if(e.k==='dead'&&!bench){ if(e.u.side==='ally') toast(`${e.u.name}が壊滅…`,'warn'); }
-    else if(e.k==='bossdown'&&!bench){ toast(`<b>${e.u.gen||e.u.name}の本隊が崩れた！</b>敵の士気が下がる`,'big good'); }
-    else if(e.k==='end'&&!bench){ setTimeout(()=>showResult(),1400); }
+    else if(e.k==='bossdown'&&!bench){ sfx('taiko'); sfx('taiko',0,.25); sfx('horagai',0,2); toast(`<b>${e.u.gen||e.u.name}の本隊が崩れた！</b>敵の士気が下がる`,'big good'); }
+    else if(e.k==='end'&&!bench){ SND.play(e.r==='win'?'win':'lose'); setTimeout(()=>showResult(),1400); }
   } }
 
 /* ================= 合戦の流れ ================= */
@@ -294,7 +404,7 @@ function startBattle(){
   clearUnits(); bench=null; sunsetDone=false; IY.applyTime(1); OB.shadowDirty=3;
   B=new SIM.Battle(MAP,{army:MAP.army,h:H});
   buildCards(B); buildLines(); setLines(0); $('obModal').hidden=true; $('obCards').hidden=false; $('obLines').hidden=false; $('obHud').hidden=!QS.has('hud');
-  UI.pauseManual=false; finish(); toast(`<b>${MAP.title}</b>${MAP.goal}！`,'big');
+  UI.pauseManual=false; finish(); toast(`<b>${MAP.title}</b>${MAP.goal}！`,'big'); $('obSnd').textContent=SND.on?'🔊':'🔇'; sfx('horagai'); sfx('taiko',0,1.5);
 }
 function showBrief(){
   Object.assign(CAM,{x:-4,z:-95,dist:215});
@@ -312,7 +422,7 @@ function showBrief(){
   <h2>敵の傾向　<small>${E.side}・${E.waves.length}波</small></h2>
   <p class="obMix">${mix}</p><p>${E.trend}。大将 <b>${E.boss.name}</b>（特技「${E.boss.skill.name}」${E.boss.skill.text}）</p>
   <div class="obRps"><span class="k t-yari">槍</span>→<span class="k t-kiba">騎</span>→<span class="k t-yumi">弓</span>→<span class="k t-yari">槍</span><small>矢印の先に強い（有利1.5倍・不利0.6倍）。不利な相手や挟み撃ちで士気が下がり、0になると敗走</small></div>
-  <p class="obHow">部隊のアイコン（下の札）をタップすると<b>時間が止まり</b>、指示を出せます。行き先や相手をタップすると再開。まとめて指示するときは右上の ❚❚。赤い点線が敵の進軍ルートです。</p>
+  <p class="obHow">部隊のアイコン（下の札）をタップすると<b>時間が止まり</b>、指示を出せます。行き先や相手をタップすると再開。まとめて指示するときは右上の ❚❚。赤い点線が敵の進軍ルートです。<br>部隊ごとの<b>特技</b>と、采配を使う<b>策</b>（鼓舞・落石・門を閉ざす）も使いこなそう。右上の🔊で効果音のオン・オフ。</p>
   <div class="obAct"><button class="obBtn obGo" id="obStart">出陣</button><button class="obBtn" id="obBackSt">城選びへ戻る</button><button class="obBtn" id="obBenchBtn">負荷テスト</button></div></div>`;
   $('obStart').onclick=startBattle; $('obBackSt').onclick=goStages; $('obBenchBtn').onclick=showBenchSetup;
 }
@@ -390,7 +500,7 @@ function hudText(){ const r=IY.renderer.info.render,P=window.OshiroPerf;
   return s; }
 
 /* ================= 毎フレーム ================= */
-let clock=0,pingT=0,hudT=0;
+let clock=0,pingT=0,hudT=0,clashT=0;
 function frame(dt,now){
   if(lastNow){ FT.push([now,now-lastNow]); if(FT.length>600) FT.splice(0,FT.length-600); } lastNow=now;
   clock+=dt;
@@ -400,6 +510,8 @@ function frame(dt,now){
   if(B&&B.state!=='run'&&B.events.length) onEvents(B);
   simMs=simMs*.9+(performance.now()-t0)*.1;
   /* 動いている間は perf.js の「止まっている」判定（毎秒20回に落とす）を起こさない */
+  if(B&&!paused()&&!bench&&(clashT-=dt)<=0){ clashT=.3+Math.random()*.35; let n=0; for(const u of B.units) if(u.engaged&&T[u.type].melee&&u.state!=='dead'&&u.state!=='gone') n++; if(n) sfx('clash',0,vol()*Math.min(1,.45+n*.12)); }
+  drawRocks(paused()?0:dt*UI.speed);
   if(B&&!paused()&&(pingT-=dt)<=0){ pingT=.4; try{ dispatchEvent(new Event('wheel')); }catch(e){} }
   if(!B&&!reduceMotion){ CAM.yaw+=dt*.045; }
   root.classList.toggle('inMenu',!B);
@@ -411,9 +523,12 @@ function frame(dt,now){
   root.classList.toggle('isPaused',!!B&&paused()&&$('obModal').hidden);
   $('obPaused').hidden=!(UI.pauseManual&&B&&B.state==='run'&&!UI.sel&&!UI.mode);
 }
+let hudT2=0;
 function after(dt){
   if(B){ updIcons(B); if(!bench) updCards(B); }
-  updMarks();
+  updMarks(); updGates(); updSaku();
+  if(B&&UI.sel&&!$('obOrder').hidden&&((hudT2-=dt)<=0)){ hudT2=.5; showOrder(); }
+  $('obSaku').hidden=!B||!!bench;
   if(B&&!bench){ const left=B.duration-B.time; $('obTime').textContent=fmt(left); const w=B.waveNow; const nx=B.waves.find(q=>!q.spawned);
     $('obWave').innerHTML=w<0?`敵の接近まで ${fmt(nx.t-B.time)}`:`第${'一二三四五'[w]}波 ${B.waves[w].label}${nx?`<small>次の波 ${fmt(nx.t-B.time)}</small>`:'<small>最後の波</small>'}`; }
   if(!$('obHud').hidden&&(hudT-=dt)<=0){ hudT=.5; const t=$('obHudT')||(()=>{ const p=el('pre'); p.id='obHudT'; $('obHud').prepend(p); return p; })(); t.textContent=hudText(); }
@@ -425,5 +540,5 @@ document.documentElement.classList.add('obready');
 OB.ready=true;
 document.title='戦国・城ディフェンス（仮）';
 if(QS.has('bench')) showBenchSetup(); else showBrief();
-OB.debug={get B(){ return B; },UI,CAM,startBattle,startBench,BEN,get bench(){ return bench; },fpsOf,get figTotal(){ return figTotal; }};
+OB.debug={get B(){ return B; },UI,CAM,tapGround,confirmPend,tapSaku,tapUnit,SND,startBattle,startBench,BEN,get bench(){ return bench; },fpsOf,get figTotal(){ return figTotal; }};
 })();

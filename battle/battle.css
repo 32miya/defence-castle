@@ -108,3 +108,24 @@ html.obattle:not(.obready) body::after{content:"陣を敷いております…";
 
 /* 出陣前の画面の間は上の帯・札を隠す */
 #obRoot.inMenu #obTop,#obRoot.inMenu #obLines,#obRoot.inMenu #obCards{display:none}
+/* ===== 特技・策・ルートの下見 ===== */
+.obOGrid{grid-template-columns:repeat(3,1fr)}
+.obOGrid .obSkill{border-color:#d6a933;background:rgba(214,169,51,.16)} .obOGrid .obSkill b{color:#ffd98a}
+.obOGrid button:disabled{opacity:.45}
+#obSaku{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 86px);display:flex;gap:5px;align-items:stretch;pointer-events:auto;width:min(520px,calc(100% - 16px))}
+#obSaku .sg{display:flex;flex-direction:column;justify-content:center;align-items:center;background:var(--pa);border:1px solid var(--ln);border-radius:10px;padding:3px 7px}
+#obSaku .sg b{font:700 11px/1.2 "Hiragino Mincho ProN",serif;color:#ffd98a;letter-spacing:.1em}
+#obSG{display:flex;gap:2px;margin-top:2px} #obSG i{width:9px;height:9px;transform:rotate(45deg);border:1px solid #d6a933;background:linear-gradient(0deg,#d6a933 calc(var(--f)*100%),transparent calc(var(--f)*100%))}
+#obSaku button{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:5px 2px;border-radius:10px;border:1px solid #8a6d2c;background:rgba(60,36,18,.88);cursor:pointer;-webkit-tap-highlight-color:transparent}
+#obSaku button b{font:700 13px/1.2 "Hiragino Mincho ProN",serif;white-space:nowrap} #obSaku button small{font-size:9.5px;opacity:.75}
+#obSaku button.off{opacity:.42} #obSaku button:active{transform:scale(.96)}
+#obOrder,#obPrompt{bottom:calc(env(safe-area-inset-bottom,0px) + 134px)}
+#obPrompt em{flex-basis:100%;text-align:center;font-style:normal;font-size:12px;color:#ffe3a3;min-height:1em} #obPrompt em .good{color:#9be38a} #obPrompt em .bad{color:#ff8c7c}
+#obPrompt .obGo:disabled{opacity:.4;filter:grayscale(.6)}
+.obU.buff{box-shadow:0 0 0 3px #ffd24a,0 0 16px 4px rgba(255,190,60,.8)}
+.obGate{position:absolute;left:0;top:0;transform:translate(-50%,-50%);display:none;pointer-events:auto;border:0;border-radius:8px;padding:3px 8px;background:rgba(22,19,15,.88);border:1px solid var(--ln);font-size:11px;white-space:nowrap;cursor:pointer}
+.obGate b{display:block;font-weight:700} .obGate i{display:block;height:3px;background:rgba(255,255,255,.15);border-radius:2px;overflow:hidden;margin-top:2px} .obGate s{display:block;height:100%;background:#e8a33a;text-decoration:none}
+.obGate.closed{border-color:#e8a33a;color:#ffd98a} .obGate.pick{background:rgba(192,57,43,.9);border-color:#ffd98a;animation:obPulse .9s infinite}
+#obGates{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+@media (orientation:landscape) and (max-height:500px){ #obSaku{left:auto;right:calc(env(safe-area-inset-right,0px) + 8px);transform:none;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);width:min(330px,38%)} #obOrder,#obPrompt{bottom:calc(env(safe-area-inset-bottom,0px) + 64px)} }
+@media (max-width:480px){ .obBtns{gap:4px} .obBtns .obBtn{width:36px;min-height:38px;font-size:13px} #obTop{gap:4px} }
