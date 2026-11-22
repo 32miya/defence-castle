@@ -129,3 +129,4 @@ html.obattle:not(.obready) body::after{content:"陣を敷いております…";
 #obGates{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 @media (orientation:landscape) and (max-height:500px){ #obSaku{left:auto;right:calc(env(safe-area-inset-right,0px) + 8px);transform:none;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);width:min(330px,38%)} #obOrder,#obPrompt{bottom:calc(env(safe-area-inset-bottom,0px) + 64px)} }
 @media (max-width:480px){ .obBtns{gap:4px} .obBtns .obBtn{width:36px;min-height:38px;font-size:13px} #obTop{gap:4px} }
+#obSaku[hidden],#obRoot.inMenu #obSaku{display:none}

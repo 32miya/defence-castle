@@ -372,6 +372,24 @@ const SND=(()=>{ let ctx=null,master=null,noise=null,on=true; try{ on=localStora
 function sfx(k,gap,a,b){ if(SND.ok(k,gap||0)) SND.play(k,a,b); }
 const vol=()=>Math.max(.25,Math.min(1,140/CAM.dist));
 
+/* ================= 画面の操作（ドラッグで移動・2本指で拡大と回転） ================= */
+{ const V=$('obView'),pts=new Map(); let tap=null,last=null;
+  V.addEventListener('pointerdown',e=>{ try{ V.setPointerCapture(e.pointerId); }catch(_){} pts.set(e.pointerId,{x:e.clientX,y:e.clientY,b:e.button,sh:e.shiftKey}); if(pts.size===1) tap={x:e.clientX,y:e.clientY,t:performance.now()}; else tap=null; last=null; });
+  V.addEventListener('pointermove',e=>{ const p=pts.get(e.pointerId); if(!p) return; const k=CAM.dist*1.1/innerHeight;
+    if(pts.size===1){ const dx=e.clientX-p.x,dy=e.clientY-p.y; if(tap&&Math.hypot(e.clientX-tap.x,e.clientY-tap.y)>9) tap=null;
+      if(p.b===2||p.sh){ CAM.yaw-=dx*.006; }
+      else { const c=Math.cos(CAM.yaw),s=Math.sin(CAM.yaw); CAM.x-=(c*dx+s*dy*1.3)*k; CAM.z-=(-s*dx+c*dy*1.3)*k; } }
+    p.x=e.clientX; p.y=e.clientY;
+    if(pts.size===2){ const [a,b]=[...pts.values()],d=Math.hypot(a.x-b.x,a.y-b.y),ang=Math.atan2(b.y-a.y,b.x-a.x),mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
+      if(last){ CAM.dist*=last.d/d; let da=ang-last.a; if(da>Math.PI) da-=2*Math.PI; if(da<-Math.PI) da+=2*Math.PI; CAM.yaw-=da; const dx=mx-last.mx,dy=my-last.my,c=Math.cos(CAM.yaw),s=Math.sin(CAM.yaw); CAM.x-=(c*dx+s*dy*1.3)*k; CAM.z-=(-s*dx+c*dy*1.3)*k; }
+      last={d,a:ang,mx,my}; } });
+  const up=e=>{ const had=pts.has(e.pointerId); pts.delete(e.pointerId); last=null; if(!had) return;
+    if(tap&&pts.size===0&&performance.now()-tap.t<450){ const g=groundAt(e.clientX,e.clientY); if(g) tapGround(g[0],g[1]); } tap=null; };
+  V.addEventListener('pointerup',up); V.addEventListener('pointercancel',up);
+  V.addEventListener('wheel',e=>{ e.preventDefault(); CAM.dist*=Math.exp(e.deltaY*.0012); },{passive:false});
+  V.addEventListener('contextmenu',e=>e.preventDefault());
+  addEventListener('keydown',e=>{ if(e.code==='Space'){ $('obPause').click(); e.preventDefault(); } if(e.key==='q') CAM.yaw+=.1; if(e.key==='e') CAM.yaw-=.1; });
+}
 /* ================= お知らせ ================= */
 function toast(msg,kind){ const t=$('obToast'),d=el('div','obT '+(kind||''),msg); t.appendChild(d); while(t.children.length>4) t.firstChild.remove(); setTimeout(()=>d.classList.add('out'),kind==='big'?3800:2600); setTimeout(()=>d.remove(),kind==='big'?4600:3300); }
 function onEvents(b){
