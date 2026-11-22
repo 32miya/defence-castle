@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#16110c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="description" content="名城に攻め寄せる大軍を、足軽・弓・騎馬の三すくみで迎え撃つ戦国の城ディフェンス">
+<title>戦国・城ディフェンス（仮）</title>
+<style>
+:root{--gold:#d6a933;--tx:#f1e9d8;--pa:rgba(22,19,15,.86);--ln:rgba(241,233,216,.18)}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#16110c;color:var(--tx);font:500 14px/1.6 "Hiragino Sans","Noto Sans JP",system-ui,sans-serif;-webkit-text-size-adjust:100%}
+body{overflow:hidden;-webkit-user-select:none;user-select:none}
+button,a{font:inherit;color:inherit}
+.mc{font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif}
+/* 背景: 夕暮れの城（ゲームのための描きおろしの影絵） */
+#bg{position:fixed;inset:0;z-index:0}
+#bg svg{position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:max(100%,900px);height:auto}
+#bg::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 50% 42%,transparent 0%,rgba(8,6,4,.35) 55%,rgba(6,5,4,.85) 100%)}
+.sky{position:fixed;inset:0;background:linear-gradient(180deg,#1b1626 0%,#4a2c2f 34%,#b2553a 58%,#e39a4f 72%,#f3c06e 80%)}
+.sun{position:fixed;left:50%;top:58%;width:44vmin;height:44vmin;margin:-22vmin 0 0 -22vmin;border-radius:50%;background:radial-gradient(circle,#ffe7a8 0%,#ffbf5e 40%,rgba(255,150,70,0) 70%);opacity:.9}
+.scr{position:fixed;inset:0;z-index:2;display:flex;align-items:center;justify-content:center;padding:calc(env(safe-area-inset-top,0px) + 12px) 12px calc(env(safe-area-inset-bottom,0px) + 12px);overflow:auto}
+.scr[hidden]{display:none}
+/* タイトル */
+#title{flex-direction:column;text-align:center;gap:14px}
+.logo{position:relative;padding:4px 22px 10px;animation:in 1s ease-out}
+.logo small{display:block;color:#efd9a6;font-size:13px;letter-spacing:.6em;padding-left:.6em;margin-bottom:8px;text-shadow:0 1px 4px #000}
+.logo h1{margin:0;color:#fbe9b8;font-weight:800;line-height:1.15;text-shadow:0 3px 0 #000,0 0 30px rgba(214,169,51,.5)}
+.logo h1 span{display:block;white-space:nowrap}
+.logo .l1{font-size:clamp(18px,5.5vw,32px);letter-spacing:.55em;padding-left:.55em;color:#f0d38b}
+.logo .l2{font-size:clamp(34px,10.5vw,64px);letter-spacing:.12em}
+.logo::after{content:"";display:block;height:2px;margin:12px auto 0;width:84%;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+.kari{position:absolute;right:-2px;top:-6px;width:36px;height:36px;border:2px solid #c0392b;border-radius:6px;color:#ff6f5e;font:700 19px/32px "Hiragino Mincho ProN",serif;transform:rotate(12deg);background:rgba(20,10,8,.55)}
+.lead{margin:0;font-size:13px;line-height:1.9;text-shadow:0 1px 4px #000,0 0 12px rgba(0,0,0,.7)}
+.menu{display:flex;flex-direction:column;gap:8px;width:min(320px,90%);margin-top:6px;animation:in 1.3s ease-out}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 14px;border-radius:10px;border:1px solid var(--ln);background:var(--pa);text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.btn:active{transform:scale(.97)}
+.go{background:#8f2a20;border-color:var(--gold);font-weight:700}
+.menu>.btn{min-height:52px;font-size:17px;letter-spacing:.22em}
+.sub{display:flex;gap:6px} .sub .btn{flex:1;font-size:12.5px;min-height:40px}
+.prog{margin:2px 0 0;font-size:12px;color:#efd9a6;text-shadow:0 1px 4px #000}
+@keyframes in{from{opacity:0;transform:translateY(10px)}}
+/* シート */
+.sheet{width:min(560px,100%);max-height:100%;overflow:auto;-webkit-overflow-scrolling:touch;background:rgba(24,21,17,.95);border:1px solid #6d5a33;border-radius:16px;padding:16px;box-shadow:0 12px 40px rgba(0,0,0,.6);animation:in .4s ease-out}
+.sheet h1{margin:2px 0;font-size:24px;letter-spacing:.12em;color:#f6e7c3}
+.sheet h2{margin:14px 0 6px;font-size:15px;letter-spacing:.08em;border-bottom:1px solid var(--ln);padding-bottom:4px}
+.sheet p{margin:6px 0}
+.era{font-size:11px;opacity:.7;letter-spacing:.2em;margin:0} .note{font-size:12.5px;opacity:.88}
+.st{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:5px}
+.st li{display:grid;grid-template-columns:auto 1fr auto;grid-template-areas:"no b em" "no s em";gap:0 10px;align-items:center;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid var(--ln)}
+.st .no{grid-area:no;font-size:11px;line-height:1.2;color:#d9c79b;width:3.2em;text-align:center}
+.st b{grid-area:b;font-size:16px;letter-spacing:.08em} .st small{grid-area:s;font-size:11px;opacity:.75}
+.st em{grid-area:em;font-style:normal;font-size:11px;text-align:right;opacity:.8}
+.st li.ok{cursor:pointer;border-color:var(--gold);background:rgba(143,42,32,.4)} .st li.ok em{color:#ffd98a;opacity:1;font-weight:700}
+.st li.ok:active{transform:scale(.99)} .st li.lock{opacity:.5} .st li.cl em{color:#9be38a}
+.act{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px} .act .btn{flex:1;min-width:110px}
+.k{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font:700 12.5px/1 "Hiragino Mincho ProN",serif;color:#fff;vertical-align:middle}
+.t-yari{background:#2f6b4f} .t-yumi{background:#7a4f9a} .t-kiba{background:#a8642a}
+.rps{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:8px 0;background:rgba(255,255,255,.04);border-radius:8px;padding:8px} .rps small{flex-basis:100%;font-size:11.5px;opacity:.8}
+.howl{margin:6px 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:3px;font-size:13px} .howl b{display:inline-block;width:3.6em;color:#ffd98a}
+.toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 16px);transform:translateX(-50%);z-index:9;background:rgba(22,19,15,.94);border:1px solid var(--gold);border-radius:10px;padding:8px 14px;font-size:13px;transition:opacity .5s}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<div class="sky"></div><div class="sun"></div>
+<div id="bg" aria-hidden="true">
+<svg viewBox="0 0 900 520" preserveAspectRatio="xMidYMax meet">
+  <!-- 遠くの山 -->
+  <path d="M0 380 L90 330 L170 360 L260 300 L360 350 L450 310 L560 360 L650 320 L760 355 L900 315 L900 520 L0 520Z" fill="#5a2f2c" opacity=".55"/>
+  <path d="M0 410 L120 370 L230 400 L330 365 L470 405 L600 372 L720 402 L900 368 L900 520 L0 520Z" fill="#3c2222" opacity=".8"/>
+  <!-- 城山と石垣 -->
+  <path d="M120 520 Q250 420 360 395 L540 395 Q660 425 790 520Z" fill="#1d1412"/>
+  <path d="M330 398 L370 352 L530 352 L570 398Z" fill="#241815"/>
+  <!-- 天守（二重の屋根・三層） -->
+  <g fill="#120c0a">
+    <rect x="395" y="300" width="110" height="54"/>
+    <path d="M372 306 L528 306 L505 290 L395 290Z"/>
+    <rect x="410" y="252" width="80" height="40"/>
+    <path d="M392 258 L508 258 L488 242 L412 242Z"/>
+    <path d="M430 242 L450 226 L470 242Z"/>
+    <rect x="422" y="208" width="56" height="36"/>
+    <path d="M402 212 L498 212 L478 196 L422 196Z"/>
+    <path d="M403 212 Q396 206 392 200 L404 208Z M497 212 Q504 206 508 200 L496 208Z"/>
+    <path d="M372 306 Q364 300 360 293 L376 302Z M528 306 Q536 300 540 293 L524 302Z"/>
+    <!-- 櫓と塀 -->
+    <rect x="300" y="372" width="46" height="26"/><path d="M290 376 L356 376 L344 364 L302 364Z"/>
+    <rect x="560" y="374" width="40" height="24"/><path d="M552 378 L608 378 L598 366 L562 366Z"/>
+    <rect x="346" y="388" width="214" height="7"/>
+  </g>
+  <!-- 窓あかり -->
+  <g fill="#ffb85a" opacity=".85"><rect x="412" y="318" width="8" height="6"/><rect x="446" y="318" width="8" height="6"/><rect x="480" y="318" width="8" height="6"/><rect x="430" y="266" width="7" height="6"/><rect x="463" y="266" width="7" height="6"/><rect x="446" y="222" width="8" height="6"/></g>
+  <!-- 手前の陣と幟 -->
+  <path d="M0 520 L0 470 Q150 450 260 478 Q320 492 380 520Z M900 520 L900 462 Q760 450 650 480 Q600 495 560 520Z" fill="#0d0907"/>
+  <g stroke="#0d0907" stroke-width="3">
+    <line x1="60" y1="470" x2="60" y2="392"/><line x1="105" y1="466" x2="105" y2="404"/><line x1="150" y1="468" x2="150" y2="396"/>
+    <line x1="760" y1="462" x2="760" y2="388"/><line x1="805" y1="460" x2="805" y2="398"/><line x1="850" y1="462" x2="850" y2="390"/>
+  </g>
+  <g fill="#7a1e17"><rect x="61" y="394" width="16" height="44"/><rect x="106" y="406" width="16" height="40"/><rect x="151" y="398" width="16" height="44"/></g>
+  <g fill="#23365e"><rect x="743" y="390" width="16" height="44"/><rect x="788" y="400" width="16" height="40"/><rect x="833" y="392" width="16" height="44"/></g>
+</svg>
+</div>
+
+<section class="scr" id="title">
+  <div class="logo mc"><small>城を守り抜け</small><h1><span class="l1">戦国</span><span class="l2">城ディフェンス</span></h1><span class="kari">仮</span></div>
+  <p class="lead">名城に攻め寄せる大軍を、<br>足軽・弓・騎馬の三すくみで迎え撃つ。<br>小さな城から始め、最後は大坂の陣へ。</p>
+  <div class="menu">
+    <button class="btn go mc" id="tPlay">合戦をはじめる</button>
+    <button class="btn mc" id="tHow">遊び方</button>
+    <div class="sub"><a class="btn" id="tBench" href="/32miya-inuyama-castle/?battle&amp;bench">負荷テスト</a><a class="btn" href="/oshiro/">お城さんぽへ</a></div>
+  </div>
+  <p class="prog" id="prog"></p>
+</section>
+
+<section class="scr" id="stages" hidden>
+  <div class="sheet"><p class="era">城選び</p><h1 class="mc">守る城を選ぶ</h1>
+    <p class="note">小さな城から順に。進むほど難攻不落の城・広い城になり、敵の兵も増えます。</p>
+    <ol class="st mc" id="stList"></ol>
+    <p class="note" id="army"></p>
+    <div class="act"><button class="btn" data-go="title">タイトルへ</button></div></div>
+</section>
+
+<section class="scr" id="how" hidden>
+  <div class="sheet"><p class="era">遊び方</p><h1 class="mc">合戦の心得</h1>
+  <h2 class="mc">勝ち負け</h2><p>決められた時間（日没・援軍の到着など）まで守り抜けば勝ち。<b>本丸に敵が一兵でも入れば落城</b>。敵は3〜4波で攻め寄せ、最後の波に大将が来ます。</p>
+  <h2 class="mc">指示を出す</h2><p>部隊のアイコン（または下の札）をタップすると<b>時間が止まります</b>。指示を選び、行き先や相手をタップすると再開。右上の ❚❚ で止めると、何部隊にもまとめて指示できます。</p>
+  <ul class="howl"><li><b class="mc">守備</b>その場や門・櫓・石垣を守る</li><li><b class="mc">援軍</b>味方の部隊のもとへ駆けつける</li><li><b class="mc">迎撃</b>選んだ敵の部隊を狙う</li><li><b class="mc">任せる</b>部隊が自分で判断して戦う</li><li><b class="mc">退却</b>ひとつ奥の曲輪へ下がる</li></ul>
+  <h2 class="mc">三すくみ</h2><div class="rps"><span class="k t-yari">槍</span>→<span class="k t-kiba">騎</span>→<span class="k t-yumi">弓</span>→<span class="k t-yari">槍</span><small>足軽は騎馬に、騎馬は弓に、弓は足軽に強い。有利なら1.5倍、不利なら0.6倍。</small></div>
+  <h2 class="mc">士気と地形</h2><p>不利な相手との戦いや挟み撃ちで士気が下がり、0になると<b>敗走</b>。櫓・石垣の上の弓は射程がのび、狭い門では騎馬が弱く、急な坂では足が鈍ります。城ごとの武将の特技も使いましょう。</p>
+  <h2 class="mc">軍勢の成長</h2><p>レベルはありません。減った兵は次の城へ持ち越し、合戦の前に後詰め（援軍）が加わります。損害が少なければ部隊が増えます。</p>
+  <div class="act"><button class="btn go" data-go="title">戻る</button></div></div>
+</section>
+
+<script src="battle/stages.js"></script>
+<script>
+(function(){
+const {STAGES,HIDDEN,SAVE}=window.OshiroBattleStages;
+const $=id=>document.getElementById(id);
+let sv={}; try{ sv=JSON.parse(localStorage.getItem(SAVE)||'{}'); }catch(e){}
+const NUM='一二三四五六七八九十';
+function show(id){ for(const s of document.querySelectorAll('.scr')) s.hidden=s.id!==id; if(id==='stages') renderStages(); history.replaceState(null,'',id==='title'?location.pathname:'#'+id); }
+function toast(t){ const d=document.createElement('div'); d.className='toast'; d.textContent=t; document.body.appendChild(d); setTimeout(()=>d.style.opacity=0,1800); setTimeout(()=>d.remove(),2400); }
+function renderStages(){
+  const all=STAGES.every(s=>sv[s.id]&&sv[s.id].cleared);
+  const row=(s,i,hid)=>{ const ok=!!s.url&&(!hid||all),cl=sv[s.id]&&sv[s.id].cleared,nm=hid&&!all?'？？？':s.name;
+    return `<li class="${ok?'ok':'lock'}${cl?' cl':''}" data-i="${hid?'h':i}"><span class="no">${hid?'隠し':'第'+NUM[i]+'の城'}</span><b>${nm}</b><small>${hid&&!all?'すべての城を守り抜くと現れる':s.pref+'・'+s.feat}</small><em>${cl?'攻略済'+(sv[s.id].bestLoss!==undefined?'<br>損害'+sv[s.id].bestLoss+'%':''):ok?'出陣できる':'準備中'}</em></li>`; };
+  $('stList').innerHTML=STAGES.map((s,i)=>row(s,i)).join('')+row(HIDDEN,10,true);
+  $('stList').querySelectorAll('li').forEach(li=>li.onclick=()=>{ const s=li.dataset.i==='h'?HIDDEN:STAGES[+li.dataset.i]; if(li.classList.contains('ok')) location.href=s.url; else toast('この城は準備中です'); });
+  $('army').textContent=sv.army?'いまの軍勢：'+sv.army.map(a=>a.name+' '+a.men+'人').join('・'):'';
+}
+const done=STAGES.filter(s=>sv[s.id]&&sv[s.id].cleared).length;
+$('prog').textContent='攻略 '+done+'／'+STAGES.length+'城'+(sv.army?'　・　軍勢 '+sv.army.length+'部隊 '+sv.army.reduce((a,b)=>a+b.men,0)+'人':'');
+$('tPlay').onclick=()=>show('stages'); $('tHow').onclick=()=>show('how');
+document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>show(b.dataset.go));
+const h=location.hash.slice(1); show(['stages','how'].includes(h)?h:'title');
+})();
+</script>
+</body>
+</html>

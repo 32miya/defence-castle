@@ -1,0 +1,110 @@
+/* 戦国・城ディフェンス（仮） 画面のスタイル。html.obattle のときだけ効く */
+html.obattle body>*:not(#app):not(#obRoot){display:none!important}
+html.obattle body{background:#14120f;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+/* 読み込み中（マップを組み立てている間）もゲームのタイトルを出す */
+html.obattle:not(.obready) body::before{content:"戦国・城ディフェンス";position:fixed;inset:0;z-index:49;display:flex;align-items:center;justify-content:center;padding-bottom:60px;
+  background:radial-gradient(ellipse at 50% 40%,#3a2a1c 0%,#16110c 60%,#0b0907 100%);color:#f3dfae;font:700 clamp(28px,8vw,54px)/1.2 "Hiragino Mincho ProN","Yu Mincho",serif;letter-spacing:.18em;text-shadow:0 2px 0 #000,0 0 24px rgba(214,169,51,.35)}
+html.obattle:not(.obready) body::after{content:"陣を敷いております…";position:fixed;left:50%;top:calc(50% + 34px);transform:translateX(-50%);z-index:50;color:#cdbf9f;font:500 14px/1.4 "Hiragino Mincho ProN","Yu Mincho",serif;letter-spacing:.3em;animation:obBlink 1.6s ease-in-out infinite}
+@keyframes obBlink{50%{opacity:.35}}
+#obRoot{--ai:#3a5fae;--en:#c0392b;--au:#d6a933;--pa:rgba(22,19,15,.84);--tx:#f1e9d8;--ln:rgba(241,233,216,.18);
+  position:fixed;inset:0;z-index:20;color:var(--tx);font:500 13px/1.45 "Hiragino Sans","Noto Sans JP",system-ui,sans-serif;pointer-events:none}
+#obRoot button,#obRoot a{font:inherit;color:inherit}
+#obView{position:absolute;inset:0;pointer-events:auto;touch-action:none}
+#obIcons,#obMarks{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.obBox{background:var(--pa);border:1px solid var(--ln);border-radius:10px;padding:6px 10px;pointer-events:auto}
+.obBtn{pointer-events:auto;display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 14px;border-radius:10px;border:1px solid var(--ln);background:var(--pa);text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.obBtn:active{transform:scale(.97)}
+.obGo{background:#8f2a20;border-color:#d6a933;font-weight:700;letter-spacing:.1em}
+/* 上の帯 */
+#obTop{position:absolute;left:0;right:0;top:0;display:flex;gap:6px;align-items:flex-start;padding:calc(env(safe-area-inset-top,0px) + 6px) calc(env(safe-area-inset-right,0px) + 8px) 0 calc(env(safe-area-inset-left,0px) + 8px)}
+.obTitle b{display:block;font:700 14px/1.2 "Hiragino Mincho ProN","Yu Mincho",serif;letter-spacing:.08em}
+.obTitle span{font-size:11.5px;opacity:.9} .obTitle em{font-style:normal;font-weight:700;font-size:15px;color:#ffd98a;margin-left:2px;font-variant-numeric:tabular-nums}
+#obWave{flex:1;text-align:center;font-weight:700;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} #obWave small{display:block;font-weight:500;font-size:11px;opacity:.8}
+.obBtns{display:flex;gap:6px} .obBtns .obBtn{width:44px;padding:0}
+#obLines{position:absolute;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 60px);display:flex;align-items:center;gap:2px;background:var(--pa);border:1px solid var(--ln);border-radius:999px;padding:3px 8px;font-size:11px;white-space:nowrap}
+#obLines span{padding:1px 6px;border-radius:999px;opacity:.75} #obLines i{opacity:.4;font-style:normal}
+#obLines span.broken{background:rgba(192,57,43,.55);opacity:1;text-decoration:line-through} #obLines span.front{background:rgba(214,169,51,.35);opacity:1;font-weight:700} #obLines .hon{color:#ffd98a;opacity:1}
+/* 部隊のアイコン */
+.obU{position:absolute;left:0;top:0;margin:-17px 0 0 -17px;width:34px;height:34px;border-radius:50%;pointer-events:auto;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  background:var(--ai);border:2px solid #e9eef8;box-shadow:0 2px 6px rgba(0,0,0,.5);will-change:transform;-webkit-tap-highlight-color:transparent}
+.obU::before{content:"";position:absolute;inset:-10px;border-radius:50%}
+.obU.enemy{background:var(--en);border-color:#f7d9d2;width:30px;height:30px;margin:-15px 0 0 -15px}
+.obU.boss{border-color:var(--au);border-width:3px;width:36px;height:36px;margin:-18px 0 0 -18px}
+.obU .k{font:700 15px/1 "Hiragino Mincho ProN","Yu Mincho",serif;color:#fff}
+.obU .n{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:2px;font-size:10.5px;font-weight:700;background:rgba(0,0,0,.6);padding:0 4px;border-radius:4px;white-space:nowrap}
+.obU .m{position:absolute;top:calc(100% + 17px);left:50%;transform:translateX(-50%);width:30px;height:3px;background:rgba(0,0,0,.6);border-radius:2px;overflow:hidden}
+.obU .m i{display:block;height:100%;width:100%;background:#7fd36b} .obU.low .m i{background:#e8a33a}
+.obU .o{position:absolute;right:-8px;top:-8px;width:17px;height:17px;border-radius:50%;background:#f1e9d8;color:#222;font-size:10.5px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.obU .bs{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:2px;font-size:10px;font-weight:700;color:#1a1206;background:var(--au);padding:0 4px;border-radius:4px;white-space:nowrap}
+.obU.sel{box-shadow:0 0 0 3px #ffd98a,0 0 14px #ffd98a} .obU.target{animation:obPulse .9s infinite}
+.obU.rout{opacity:.65;filter:grayscale(.6)} .obU.flank{box-shadow:0 0 0 3px #ff6a3d}
+@keyframes obPulse{50%{box-shadow:0 0 0 6px rgba(255,217,138,.75)}}
+/* 配置場所 */
+.obMark{position:absolute;left:0;top:0;transform:translate(-50%,-50%);pointer-events:auto;white-space:nowrap;background:rgba(214,169,51,.92);color:#1a1206;border:0;border-radius:8px;padding:4px 8px;font-weight:700;font-size:12px;line-height:1.2;box-shadow:0 2px 6px rgba(0,0,0,.4);margin:-14px 0 0 0}
+.obMark small{display:block;font-weight:500;font-size:10px}
+/* 下の札 */
+#obCards{position:absolute;left:0;right:0;bottom:0;display:flex;gap:6px;padding:0 calc(env(safe-area-inset-right,0px) + 8px) calc(env(safe-area-inset-bottom,0px) + 8px) calc(env(safe-area-inset-left,0px) + 8px)}
+.obCard{flex:1;min-width:0;pointer-events:auto;display:grid;grid-template-columns:auto 1fr auto;grid-template-areas:"k nm n" "m m m" "od od od";gap:2px 6px;align-items:center;text-align:left;
+  background:var(--pa);border:1px solid var(--ln);border-left:4px solid var(--ai);border-radius:10px;padding:6px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.obCard .k{grid-area:k} .obCard .nm{grid-area:nm;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .obCard .n{grid-area:n;font-size:12px;font-variant-numeric:tabular-nums}
+.obCard .m{grid-area:m;height:4px;background:rgba(255,255,255,.12);border-radius:2px;overflow:hidden} .obCard .m i{display:block;height:100%;background:#7fd36b;width:100%}
+.obCard .od{grid-area:od;font-size:10.5px;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.obCard.sel{border-color:#ffd98a;box-shadow:0 0 0 2px #ffd98a} .obCard.rout{opacity:.7} .obCard.dead{opacity:.35}
+.k{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font:700 12.5px/1 "Hiragino Mincho ProN","Yu Mincho",serif;color:#fff;background:#555;flex:none}
+.k.t-yari{background:#2f6b4f} .k.t-yumi{background:#7a4f9a} .k.t-kiba{background:#a8642a} .k.t-teppo{background:#444}
+.obU.t-yari .k,.obU.t-yumi .k,.obU.t-kiba .k{width:auto;height:auto;background:none}
+/* 指示の画面 */
+#obOrder{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 82px);width:min(440px,calc(100% - 16px));background:rgba(22,19,15,.94);border:1px solid #d6a933;border-radius:14px;padding:10px;pointer-events:auto;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+.obOH{display:flex;align-items:center;gap:6px;font-weight:700;font-size:15px} .obOH>span{flex:1;display:flex;align-items:center;gap:6px} .obOH small{font-weight:500;font-size:11px;opacity:.8}
+.obX{width:34px;height:34px;border-radius:50%;border:1px solid var(--ln);background:none;cursor:pointer}
+.obOS{font-size:12px;opacity:.9;margin:4px 0 8px}
+.obOGrid{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+.obOGrid button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 2px;border-radius:10px;border:1px solid var(--ln);background:rgba(255,255,255,.05);cursor:pointer}
+.obOGrid button b{font:700 16px/1 "Hiragino Mincho ProN","Yu Mincho",serif;letter-spacing:.08em} .obOGrid button small{font-size:9.5px;opacity:.75;line-height:1.2;text-align:center}
+.obOGrid button:active{background:rgba(214,169,51,.3)}
+#obPrompt{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 82px);display:flex;gap:6px;align-items:center;background:rgba(22,19,15,.94);border:1px solid #d6a933;border-radius:12px;padding:6px 6px 6px 12px;pointer-events:auto;max-width:calc(100% - 16px)}
+#obPrompt span{font-weight:700;font-size:12.5px}
+#obPaused{position:absolute;left:50%;top:calc(env(safe-area-inset-top,0px) + 96px);transform:translateX(-50%);display:flex;gap:8px;align-items:center;background:rgba(22,19,15,.9);border:1px solid #d6a933;border-radius:12px;padding:6px 6px 6px 12px;pointer-events:auto;white-space:nowrap}
+#obPaused span{font-size:11px;opacity:.8}
+#obRoot.isPaused #obView{box-shadow:inset 0 0 0 3px rgba(214,169,51,.6)}
+/* お知らせ */
+#obToast{position:absolute;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 92px);display:flex;flex-direction:column;align-items:center;gap:5px;width:min(460px,calc(100% - 20px))}
+.obT{background:rgba(22,19,15,.88);border-radius:10px;padding:6px 12px;font-size:12.5px;text-align:center;transition:opacity .6s,transform .6s;border:1px solid var(--ln)}
+.obT b{display:block;font:700 16px/1.3 "Hiragino Mincho ProN","Yu Mincho",serif;letter-spacing:.08em}
+.obT.big{padding:10px 16px;border-color:#d6a933} .obT.warn{border-color:#e0584a;color:#ffd6cf} .obT.good{border-color:#7fd36b} .obT.order{opacity:.9;font-size:12px}
+.obT.out{opacity:0;transform:translateY(-6px)}
+/* 出陣前・結果 */
+.obModal{position:absolute;inset:0;pointer-events:auto;background:rgba(10,9,7,.55);display:flex;align-items:center;justify-content:center;padding:calc(env(safe-area-inset-top,0px) + 10px) 10px calc(env(safe-area-inset-bottom,0px) + 10px);overflow:auto}
+.obSheet{width:min(560px,100%);max-height:100%;overflow:auto;-webkit-overflow-scrolling:touch;background:rgba(24,21,17,.96);border:1px solid #6d5a33;border-radius:16px;padding:16px 16px 14px;box-shadow:0 12px 40px rgba(0,0,0,.6)}
+.obSheet h1{margin:2px 0;font:700 26px/1.2 "Hiragino Mincho ProN","Yu Mincho",serif;letter-spacing:.14em;color:#f6e7c3}
+.obSheet.win h1{color:#ffd98a} .obSheet.lose h1{color:#ff8c7c}
+.obSheet h2{margin:14px 0 6px;font:700 15px/1.3 "Hiragino Mincho ProN","Yu Mincho",serif;letter-spacing:.08em;border-bottom:1px solid var(--ln);padding-bottom:4px} .obSheet h2 small{font:500 11px "Hiragino Sans",sans-serif;opacity:.75}
+.obSheet p{margin:6px 0}
+.obEra{font-size:11px;opacity:.7;letter-spacing:.2em} .obSub{font-size:12px;opacity:.85}
+.obCond{display:flex;gap:6px;margin:10px 0 0;flex-wrap:wrap} .obCond>div{flex:1;min-width:120px;background:rgba(255,255,255,.05);border-radius:10px;padding:6px 10px} .obCond small{display:block;font-size:10.5px;opacity:.7} .obCond b{font-size:15px}
+.obArmy{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px} .obArmy li{display:grid;grid-template-columns:auto auto 1fr;gap:2px 8px;align-items:center;background:rgba(255,255,255,.04);border-radius:8px;padding:6px 8px}
+.obArmy li small{grid-column:2/4;font-size:11px;opacity:.75}
+.obGen{font-size:12px;background:rgba(214,169,51,.12);border-radius:8px;padding:6px 8px}
+.obMix .k{margin:0 3px 0 0;vertical-align:middle} .obMix{font-size:12.5px}
+.obRps{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:10px 0;background:rgba(255,255,255,.04);border-radius:8px;padding:8px} .obRps small{flex-basis:100%;font-size:11px;opacity:.8}
+.obHow,.obNote{font-size:12px;opacity:.88}
+.obAct{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px} .obAct .obBtn{flex:1;min-width:110px}
+.obTab{width:100%;border-collapse:collapse;font-size:12px} .obTab th,.obTab td{padding:4px;border-bottom:1px solid var(--ln);text-align:right} .obTab th:first-child,.obTab td:first-child{text-align:left} .obTab td:first-child{display:flex;align-items:center;gap:4px} .obTab em{font-style:normal;color:#ffd98a;font-size:10px}
+.obRange{display:block;margin:10px 0} .obRange b{color:#ffd98a} .obRange input{display:block;width:100%;margin-top:4px}
+#obHud{position:absolute;left:calc(env(safe-area-inset-left,0px) + 8px);bottom:calc(env(safe-area-inset-bottom,0px) + 8px);background:rgba(0,0,0,.72);border-radius:10px;padding:8px;pointer-events:auto;max-width:calc(100% - 16px)}
+#obHud pre{margin:0;font:12px/1.45 ui-monospace,Menlo,monospace;color:#bff5b0;white-space:pre-wrap}
+#obHud .obAct{margin-top:6px} #obHud .obBtn{min-height:34px;font-size:12px}
+@media (orientation:landscape) and (max-height:500px){
+  #obLines{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 70px);left:auto;right:calc(env(safe-area-inset-right,0px) + 8px);transform:none}
+  #obCards{right:auto;width:min(520px,60%)} .obCard{padding:4px 8px}
+  #obOrder,#obPrompt{bottom:calc(env(safe-area-inset-bottom,0px) + 64px)} #obToast{top:calc(env(safe-area-inset-top,0px) + 54px)} #obPaused{top:calc(env(safe-area-inset-top,0px) + 54px)}
+}
+@media (max-width:480px){
+  .obTitle b{display:none} .obTitle span{font-size:10.5px} #obWave{font-size:12px}
+  .obCard{grid-template-columns:auto 1fr;grid-template-areas:"k nm" "k n" "m m" "od od";padding:5px 6px} .obCard .nm{font-size:12px} .obCard .n{font-size:11px}
+  .obOGrid button small{display:none} .obOGrid button{padding:12px 2px}
+}
+#obPrompt{flex-wrap:wrap;justify-content:center;width:min(440px,calc(100% - 16px));padding:8px} #obPrompt span{flex-basis:100%;text-align:center} #obPrompt .obBtn{white-space:nowrap;min-width:120px}
+
+/* 出陣前の画面の間は上の帯・札を隠す */
+#obRoot.inMenu #obTop,#obRoot.inMenu #obLines,#obRoot.inMenu #obCards{display:none}
