@@ -255,8 +255,11 @@ function setLines(br){ $('obLines').querySelectorAll('span[data-i]').forEach(s=>
 
 /* 部隊のアイコン */
 const ORD={hold:'守',reinforce:'援',intercept:'迎',auto:'任',retreat:'退'};
+/* 遠目のアイコン: 兵士の絵（battle/img/units.webp）。行=騎馬・弓・足軽、列=正面・横・背中・斜め（味方4列→敵4列） */
+const SPR_ROW={kiba:0,yumi:1,yari:2},SPR_W=46,SPR_H=66;
+root.style.setProperty('--spr',`url(${(window.OB_GAME_URL||'/defence-castle/')}battle/img/units.webp)`);
 function iconFor(u){ let ic=UI.icons.get(u.id); if(ic) return ic;
-  ic=el('div','obU '+u.side+' t-'+u.base+(u.boss?' boss':''),`<span class="k">${G(u.type)}</span><span class="n"></span><span class="m"><i></i></span>${u.side==='ally'?'<span class="o"></span>':''}${u.boss?'<span class="bs">大将</span>':''}`);
+  ic=el('div','obU '+u.side+' t-'+u.base+(u.boss?' boss':''),`<span class="spr"></span><span class="n"></span><span class="m"><i></i></span>${u.side==='ally'?'<span class="o"></span>':''}${u.boss?'<span class="bs">大将</span>':''}`);
   ic.addEventListener('pointerdown',e=>{ e.stopPropagation(); ic._d=[e.clientX,e.clientY]; });
   ic.addEventListener('pointerup',e=>{ e.stopPropagation(); const d=ic._d; if(!d||Math.hypot(e.clientX-d[0],e.clientY-d[1])>14) return; tapUnit(u); });
   $('obIcons').appendChild(ic); UI.icons.set(u.id,ic); return ic; }
@@ -266,6 +269,11 @@ function updIcons(battle){
     if(!p||p[0]<-40||p[0]>innerWidth+40||p[1]<-40||p[1]>innerHeight+40){ if(I._v!==0){ I.style.display='none'; I._v=0; } continue; }
     if(I._v!==1){ I.style.display=''; I._v=1; }
     I.style.transform=`translate3d(${p[0].toFixed(1)}px,${p[1].toFixed(1)}px,0)`;
+    /* 兵士の絵: 画面の上で進んでいる向きに合わせて、正面・横・背中・斜めを選ぶ */
+    { const h=u.heading,q=project(x+Math.sin(h)*6,H(x,z)+9,z+Math.cos(h)*6); let f=0,mir=false;
+      if(q){ const dx=q[0]-p[0],dy=q[1]-p[1],a=Math.abs(Math.atan2(dx,dy)); f=a<.5?0:a<1.2?3:a<2.6?1:2; const natLeft=u.base!=='yumi'; mir=f===1||f===3?(natLeft?dx>0:dx<0):false; }
+      const row=SPR_ROW[u.base]||0,col=f+(u.side==='enemy'?4:0),key=row*16+col+(mir?100:0);
+      if(I._sp!==key){ I._sp=key; const sp=I.firstChild; sp.style.backgroundPosition=`${(col/7*100).toFixed(3)}% ${row*50}%`; sp.classList.toggle('mir',mir); } }
     const men=u.men; if(I._men!==men){ I._men=men; I.children[1].textContent=men; }
     const mo=Math.round(u.morale/5)*5; if(I._mo!==mo){ I._mo=mo; I.children[2].firstChild.style.width=mo+'%'; I.classList.toggle('low',mo<35); }
     const bf=B&&((u.buff&&B.time<u.buff.until)||u.kobuUntil>B.time);

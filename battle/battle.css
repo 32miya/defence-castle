@@ -141,3 +141,21 @@ html.obattle:not(.obready) body::after{content:"陣を敷いております…";
 .k .gl{width:80%;height:80%} .obCard .k{width:26px;height:26px}
 .obU .k,.obU.t-yari .k,.obU.t-yumi .k,.obU.t-kiba .k{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:none}
 .obU .gl{width:24px;height:24px} .obU.enemy .gl{width:21px;height:21px} .obU.boss .gl{width:24px;height:24px}
+/* ===== 遠目のアイコン: 兵士の絵 ===== */
+.obU,.obU.enemy,.obU.boss{width:46px;height:66px;margin:-66px 0 0 -23px;border:0;border-radius:0;background:none;box-shadow:none}
+.obU::before{inset:0}
+.obU.ally::after,.obU.enemy::after{display:none}
+.obU .spr{position:absolute;left:0;top:0;width:46px;height:66px;background-image:var(--spr);background-size:368px 198px;background-repeat:no-repeat;filter:drop-shadow(0 2px 2px rgba(0,0,0,.55))}
+.obU .spr.mir{transform:scaleX(-1)}
+.obU .n{top:auto;bottom:100%;margin:0 0 1px;font-size:10px;padding:0 4px}
+.obU .m{top:100%;margin-top:2px;width:32px}
+.obU .o{right:-6px;top:6px}
+.obU .bs{bottom:calc(100% + 15px)}
+.obU.sel .spr{filter:drop-shadow(0 0 4px #ffd98a) drop-shadow(0 0 4px #ffd98a)}
+.obU.sel,.obU.flank,.obU.buff{box-shadow:none}
+.obU.flank .spr{filter:drop-shadow(0 0 4px #ff6a3d) drop-shadow(0 0 3px #ff6a3d)}
+.obU.buff .spr{filter:drop-shadow(0 0 5px #ffd24a) drop-shadow(0 0 3px #ffbe3c)}
+.obU.boss .spr{filter:drop-shadow(0 0 4px #d6a933) drop-shadow(0 2px 2px rgba(0,0,0,.6))}
+.obU.rout .spr{filter:grayscale(.8) brightness(.9)}
+.obU.target{animation:none} .obU.target .spr{animation:obSprPulse .9s infinite}
+@keyframes obSprPulse{50%{filter:drop-shadow(0 0 6px #ffd98a) drop-shadow(0 0 6px #ffd98a)}}
