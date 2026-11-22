@@ -99,24 +99,35 @@ class Grid{
   waterAt(x,z){ const k=this.idx(x,z); return k>=0&&this.wat[k]===1; }
   wallAt(x,z){ const k=this.idx(x,z); return k>=0&&this.blk[k]===2; }
   /* マス目の上をまっすぐ行けるか（経路をなめらかにするため） */
-  line(ax,az,bx,bz,side){ const L=Math.hypot(bx-ax,bz-az),n=Math.ceil(L/(this.c*.5)); let pk=this.idx(ax,az),ph=null; for(let i=1;i<=n;i++){ const x=ax+(bx-ax)*i/n,z=az+(bz-az)*i/n,k=this.idx(x,z); if(k<0) return false; if(k!==pk){ const d=Math.hypot(...this.pos(k).map((v,q)=>v-this.pos(pk)[q]))||this.c; if(!this.ok(pk,k,d,side)||this.cost(k)!==this.cost(pk)) return false; pk=k; } } return true; }
+  line(ax,az,bx,bz,side){ const L=Math.hypot(bx-ax,bz-az),n=Math.ceil(L/(this.c*.5)); let pk=this.idx(ax,az),ph=null; for(let i=1;i<=n;i++){ const x=ax+(bx-ax)*i/n,z=az+(bz-az)*i/n,k=this.idx(x,z); if(k<0) return false; if(k!==pk){ const d=Math.hypot(...this.pos(k).map((v,q)=>v-this.pos(pk)[q]))||this.c; if(this.h2[k]===this.h2[k]||!this.ok(pk,k,d,side)||this.cost(k)!==this.cost(pk)) return false; pk=k; } } return true; }
+  /* 2段の地面（橋の上=0／橋の下=1）を区別して探す。ノード番号＝マス＋段×マスの数 */
+  hl(k,L){ return L?this.h2[k]:this.h[k]; }
+  okL(k,L,nk,NL,d,side){ const t=this.blk[nk]; if(t===1||(t===2&&side!=='enemy')) return false; if(NL&&!(this.h2[nk]===this.h2[nk])) return false;
+    if(this.wat[nk]||this.wat[k]) return true; return Math.abs(this.hl(k,L)-this.hl(nk,NL))<=this.maxSlope*d; }
   find(ax,az,bx,bz,side){
     const s=this.idx(ax,az),t=this.idx(bx,bz); if(s<0||t<0) return null; if(s===t) return [[bx,bz]];
+    const n=this.W*this.H; if(!this.g2||this.g2.length!==2*n){ this.g2=new Float32Array(2*n); this.f2=new Float32Array(2*n); this.par2=new Int32Array(2*n); this.st2=new Uint32Array(2*n); this.cl2=new Uint32Array(2*n); }
+    const G2=this.g2,F2=this.f2,PA=this.par2,ST=this.st2,CL=this.cl2;
     const run=++this.run,W=this.W,c=this.c,D2=c*Math.SQRT2; const heap=[];
-    const push=k=>{ heap.push(k); let i=heap.length-1; while(i>0){ const p=(i-1)>>1; if(this.f[heap[p]]<=this.f[k]) break; heap[i]=heap[p]; i=p; } heap[i]=k; };
-    const pop=()=>{ const top=heap[0],last=heap.pop(); if(heap.length){ let i=0; const n=heap.length; for(;;){ let l=2*i+1,r=l+1,m=i; if(l<n&&this.f[heap[l]]<this.f[m===i?last:heap[m]]) m=l; if(r<n&&this.f[heap[r]]<this.f[m===i?last:heap[m]]) m=r; if(m===i) break; heap[i]=heap[m]; i=m; } heap[i]=last; } return top; };
-    const [tx,tz]=this.pos(t),hh=k=>{ const [x,z]=this.pos(k),dx=Math.abs(x-tx),dz=Math.abs(z-tz); return Math.max(dx,dz)+(Math.SQRT2-1)*Math.min(dx,dz); };
-    this.stamp[s]=run; this.g[s]=0; this.f[s]=hh(s); this.par[s]=-1; push(s); let best=s,bh=this.f[s],it=0;
+    const push=k=>{ heap.push(k); let i=heap.length-1; while(i>0){ const p=(i-1)>>1; if(F2[heap[p]]<=F2[k]) break; heap[i]=heap[p]; i=p; } heap[i]=k; };
+    const pop=()=>{ const top=heap[0],last=heap.pop(); if(heap.length){ let i=0; const m=heap.length; for(;;){ let l=2*i+1,r=l+1,mm=i; const fv=q=>F2[q===i?last:heap[q]]; if(l<m&&F2[heap[l]]<fv(mm)) mm=l; if(r<m&&F2[heap[r]]<fv(mm)) mm=r; if(mm===i) break; heap[i]=heap[mm]; i=mm; } heap[i]=last; } return top; };
+    const [tx,tz]=this.pos(t),hh=k=>{ const [x,z]=this.pos(k%n),dx=Math.abs(x-tx),dz=Math.abs(z-tz); return Math.max(dx,dz)+(Math.SQRT2-1)*Math.min(dx,dz); };
+    const starts=[s]; if(this.h2[s]===this.h2[s]) starts.push(s+n);
+    for(const s0 of starts){ ST[s0]=run; G2[s0]=0; F2[s0]=hh(s0); PA[s0]=-1; push(s0); }
+    let best=s,bh=F2[s],it=0;
     const NB=[[1,0,c],[-1,0,c],[0,1,c],[0,-1,c],[1,1,D2],[1,-1,D2],[-1,1,D2],[-1,-1,D2]];
-    while(heap.length&&it++<300000){ const k=pop(); if(this.closed[k]===run) continue; this.closed[k]=run; if(k===t){ best=t; break; }
-      const hk=this.f[k]-this.g[k]; if(hk<bh){ bh=hk; best=k; }
+    while(heap.length&&it++<400000){ const id=pop(); if(CL[id]===run) continue; CL[id]=run; const k=id%n,L=id>=n?1:0; if(k===t){ best=id; break; }
+      const hk=F2[id]-G2[id]; if(hk<bh){ bh=hk; best=id; }
       const i=k%W,j=(k-i)/W;
-      for(const [di,dj,d] of NB){ const ni=i+di,nj=j+dj; if(ni<0||nj<0||ni>=W||nj>=this.H) continue; const nk=nj*W+ni; if(this.closed[nk]===run||!this.ok(k,nk,d,side)) continue;
-        if(di&&dj&&(!this.ok(k,j*W+ni,c,side)||!this.ok(k,nj*W+i,c,side))) continue;
-        const ng=this.g[k]+d*this.cost(nk)+Math.abs(this.h[nk]-this.h[k])*.6; if(this.stamp[nk]!==run||ng<this.g[nk]){ this.stamp[nk]=run; this.g[nk]=ng; this.f[nk]=ng+hh(nk); this.par[nk]=k; push(nk); } } }
-    const raw=[]; for(let k=best;k>=0;k=this.par[k]) raw.unshift(this.pos(k)); if(best===t) raw.push([bx,bz]); raw[0]=[ax,az];
-    /* なめらかに（見通せる点は飛ばす） */
-    const out=[]; let a=0; while(a<raw.length-1){ let b=raw.length-1; while(b>a+1&&!this.line(raw[a][0],raw[a][1],raw[b][0],raw[b][1],side)) b--; out.push(raw[b]); a=b; }
+      for(const [di,dj,d] of NB){ const ni=i+di,nj=j+dj; if(ni<0||nj<0||ni>=W||nj>=this.H) continue; const nk=nj*W+ni;
+        for(let NL=0;NL<2;NL++){ const nid=nk+NL*n; if(CL[nid]===run||!this.okL(k,L,nk,NL,d,side)) continue;
+          if(di&&dj&&(!this.okL(k,L,j*W+ni,NL&&this.h2[j*W+ni]===this.h2[j*W+ni]?1:0,c,side)||!this.okL(k,L,nj*W+i,NL&&this.h2[nj*W+i]===this.h2[nj*W+i]?1:0,c,side))) continue;
+          const ng=G2[id]+d*this.cost(nk)+Math.abs(this.hl(nk,NL)-this.hl(k,L))*.6; if(ST[nid]!==run||ng<G2[nid]){ ST[nid]=run; G2[nid]=ng; F2[nid]=ng+hh(nid); PA[nid]=id; push(nid); } } } }
+    const rawI=[]; for(let id=best;id>=0;id=PA[id]) rawI.unshift(id);
+    const raw=rawI.map(id=>this.pos(id%n)); if(best%n===t) raw.push([bx,bz]); raw[0]=[ax,az];
+    /* なめらかに（見通せる点は飛ばす）。橋のマスをまたぐ所は飛ばさない */
+    const hasB=(a2,b2)=>{ for(let q=a2;q<=b2&&q<rawI.length;q++) if(this.h2[rawI[q]%n]===this.h2[rawI[q]%n]) return true; return false; };
+    const out=[]; let a=0; while(a<raw.length-1){ let b=raw.length-1; while(b>a+1&&(hasB(a,b)||!this.line(raw[a][0],raw[a][1],raw[b][0],raw[b][1],side))) b--; out.push(raw[b]); a=b; }
     return out.length?out:[[bx,bz]]; }
 }
 
@@ -287,7 +298,7 @@ class Battle{
   }
   thinkEnemy(u,A,dt){
     const T=TYPES[u.type];
-    if(u.state==='rout'){ u.routT-=dt; const r=u.route; if(!u.path||!u.path.length) this.goTo(u,r.pts[0][0],r.pts[0][1]); if(dist(u.x,u.z,r.pts[0][0],r.pts[0][1])<6||u.routT<-14){ u.state='gone'; this.stats.enemyRouted++; this.events.push({k:'gone',u}); } return; }
+    if(u.state==='rout'){ u.routT-=dt; const r=u.route; if(!u.path||!u.path.length) this.retreat(u); if(dist(u.x,u.z,r.pts[0][0],r.pts[0][1])<6||u.routT<-14){ u.state='gone'; this.stats.enemyRouted++; this.events.push({k:'gone',u}); } return; }
     const range=this.rangeOf(u);
     let near=null,nd=1e9; for(const a of A){ if(a.state==='rout') continue; const d=dist(u.x,u.z,a.x,a.z); if(d<nd){ nd=d; near=a; } }
     u.target=null;
@@ -357,7 +368,7 @@ class Battle{
       if(u.morale<u.m0&&((u.side==='ally'&&this.skill&&this.skill.kind==='akazonae')||(u.side==='enemy'&&this.bossSkill&&this.bossSkill.kind==='daiichi'))) u.morale=u.m0-(u.m0-u.morale)*.85;
       if(u.morale<=0&&u.state!=='rout'){ u.morale=0; u.state='rout'; u.routT=C.routTime; u.target=null; this.events.push({k:'rout',u});
         if(u.side==='ally'){ const sl=this.retreatSlot(u); this.goTo(u,sl.pos[0],sl.pos[1]); u.order={kind:'hold',x:sl.pos[0],z:sl.pos[1],slot:sl}; }
-        else { this.goTo(u,u.route.pts[0][0],u.route.pts[0][1]); if(u.boss) this.bossDown(u); } }
+        else { this.retreat(u); if(u.boss) this.bossDown(u); } }
     }
   }
   flanked(u){ if(u.hitBy.length<2) return false; for(let i=0;i<u.hitBy.length;i++) for(let j=i+1;j<u.hitBy.length;j++){ const a=u.hitBy[i],b=u.hitBy[j]; const a1=Math.atan2(a.x-u.x,a.z-u.z),a2=Math.atan2(b.x-u.x,b.z-u.z); let d=Math.abs(a1-a2); if(d>Math.PI) d=2*Math.PI-d; if(d>Math.PI*.55) return true; } return false; }
@@ -414,6 +425,10 @@ class Battle{
   gateBlock(u,nx,nz){ for(const g of this.gates){ if(this.gateOpenAt(g)) continue; const d0=dist(u.x,u.z,g.pos[0],g.pos[1]),d1=dist(nx,nz,g.pos[0],g.pos[1]); if(d1<g.r+3&&d1<d0) return g; } return null; }
   face(u,t){ if(t) u.heading=Math.atan2(t.x-u.x,t.z-u.z); }
   separate(L){ for(let i=0;i<L.length;i++) for(let j=i+1;j<L.length;j++){ const a=L[i],b=L[j]; const dx=b.x-a.x,dz=b.z-a.z,d=Math.hypot(dx,dz),m=4.5; if(d<m&&d>1e-4){ const p=(m-d)/2*.5,ux=dx/d,uz=dz/d; this.nudge(a,-ux*p,-uz*p); this.nudge(b,ux*p,uz*p); } else if(d<=1e-4){ b.x+=.5; } } }
+  /* 敗走した敵は城の中を抜けず、来た道（進軍ルート）をさかのぼって引き返す */
+  retreat(u){ const r=u.route,q=projRoute(r,u.x,u.z),P=[];
+    if(q.d>4){ const p=r.pts[Math.max(0,q.i-1)]; const g=this.pathFor(u.x,u.z,p[0],p[1],'enemy'); for(const v of g) P.push(v); }
+    for(let i=q.i-1;i>=0;i--) P.push(r.pts[i]); u.path=P; u.goal=r.pts[0]; }
   nudge(u,dx,dz){ const x=u.x+dx,z=u.z+dz; if(this.grid&&this.grid.blockedAt(x,z,u.side)&&!this.grid.blockedAt(u.x,u.z,u.side)) return; u.x=x; u.z=z; }
   checkEnd(){
     /* どこまで押されたか */
@@ -432,31 +447,42 @@ class Battle{
     allyMen0:this.stats.allyMen0,allyLost:this.stats.allyLost,enemyMen:this.stats.enemyMen,enemyLost:this.stats.enemyLost,breached:this.breached}; }
 }
 
+/* ---------- 部隊数と自動編成 ----------
+   部隊の数 ＝ 城の門（入口）の数 ＋ 3（最低の部隊数）。兵は総数を兵種の割合で自動で分ける（足軽4割・弓3割強・騎馬2割半） */
+const MIN_UNITS=3, MIX={yari:.42,yumi:.33,kiba:.25};
+function capOf(map){ return (map.gates?map.gates.length:1)+(map.minUnits||MIN_UNITS); }
+function formArmy(map,total,opt){
+  opt=opt||{}; const N=capOf(map),rd=v=>Math.max(50,Math.round(v/10)*10);
+  let kiba=Math.max(1,Math.round(N*.25)),yari=Math.max(1,Math.round(N*.4)); let yumi=Math.max(1,N-kiba-yari); while(yari+yumi+kiba>N){ if(yari>=yumi&&yari>1) yari--; else if(yumi>1) yumi--; else kiba--; }
+  const cnt={yari,yumi,kiba},gen=(map.general&&map.general.name)||'',army=[],used={};
+  const NM={yari:['足軽二番組','足軽三番組','足軽四番組','足軽五番組'],yumi:['弓組','弓二番組','弓三番組','弓四番組'],kiba:['騎馬組','騎馬二番組','騎馬三番組']};
+  for(const t of ['yari','yumi','kiba']) for(let i=0;i<cnt[t];i++){ const first=t==='yari'&&i===0;
+    army.push({id:t+(i+1),type:t,men:rd(total*MIX[t]/cnt[t]),gen:first?gen:'',name:first?(gen?gen.replace(/^.*?(..)$/,'$1')+'本隊':'本隊'):NM[t][first?0:(t==='yari'?i-1:i)]}); }
+  /* 配置: 設定データの deploy（兵種ごとの場所の順）→ 空いている配置場所（足軽・騎馬は門、弓は櫓・石垣。内側の線から） */
+  const D=map.deploy||{},taken={},cnt2={};
+  for(const a of army){ const L=D[a.type]||[]; const k=cnt2[a.type]=(cnt2[a.type]||0); let sl=L[k];
+    if(!sl||taken[sl]){ const want=a.type==='yumi'?['yagura','ishigaki']:['gate']; const c=map.slots.filter(s=>!taken[s.id]).sort((p,q)=>(want.includes(q.kind)-want.includes(p.kind))||(q.line-p.line)); sl=(c[0]||map.slots[0]).id; }
+    a.dx=(taken[sl]||0)*5; taken[sl]=(taken[sl]||0)+1; a.slot=sl; cnt2[a.type]++; }
+  return army;
+}
+
 /* ---------- 成長（レベルアップなし。率いる兵数が増える） ----------
    ・減った兵は次の合戦に持ち越す
-   ・次の合戦の開始時、後詰め（援軍）として各部隊に「合戦前の兵数の reinf 割」を補充
-   ・損害が bonusLoss 以下ならボーナスで部隊が1つ増える（兵種は少ないものから自動）
-   ・部隊数が次の城の上限を超える分は、既存の部隊の兵数に足す */
-const GROW={reinf:.3,bonusLoss:.2,round:10};
-function capOf(map){ return (map.gates?map.gates.length:1)+(map.capBonus||0); }
-function nextArmy(res,cap,opt){
+   ・次の合戦の前に、後詰め（援軍）として「合戦前の総兵数の reinf 割」が加わる
+   ・損害が bonusLoss 以下なら、ほうびの後詰め（総兵数の bonus 割）がさらに加わる
+   ・次の城では、総兵数を「門の数＋3」部隊に自動で分け直す */
+const GROW={reinf:.3,bonusLoss:.2,bonus:.15,round:10};
+function nextArmy(res,nextMap,opt){
   opt=Object.assign({},GROW,opt||{});
-  const lossRate=res.allyMen0?res.allyLost/res.allyMen0:1;
-  const rd=v=>Math.round(v/opt.round)*opt.round;
-  let army=res.army.map(a=>({id:a.id,gen:a.gen,name:a.name,type:a.type,men:a.men,left:a.men,join:0,reinf:a.men>0?rd(a.men0*opt.reinf):0})).filter(a=>a.men>0);
-  const notes=[];
-  let bonus=null;
-  if(res.state==='win'&&lossRate<=opt.bonusLoss&&army.length){
-    const cnt={yari:0,yumi:0,kiba:0}; for(const a of army) cnt[a.type]=(cnt[a.type]||0)+1;
-    const type=Object.keys(cnt).sort((a,b)=>cnt[a]-cnt[b])[0];
-    const men=rd(res.allyMen0/res.army.length*.6);
-    bonus={id:'b'+Date.now().toString(36),gen:'',name:'新手の'+TYPES[type].name,type,men,reinf:0,isNew:true};
-    army.push(bonus); notes.push('損害が'+Math.round(opt.bonusLoss*100)+'%以下だったので、新しい部隊（'+TYPES[type].name+'）が加わる');
-  }
-  while(army.length>cap){ const ex=army.pop(); const per=Math.floor(ex.men/army.length/opt.round)*opt.round; let rest=ex.men; for(const a of army){ a.men+=per; a.join+=per; rest-=per; } army[0].men+=rest; army[0].join+=rest; notes.push('部隊の上限（'+cap+'）を超えた分の兵は、他の部隊に加わる'); }
-  for(const a of army){ a.menNext=a.men+a.reinf; }
-  return {lossRate,army,notes,bonus};
+  const rd=v=>Math.round(v/opt.round)*opt.round, lossRate=res.allyMen0?res.allyLost/res.allyMen0:1;
+  const left=res.army.reduce((s,a)=>s+a.men,0), reinf=rd(res.allyMen0*opt.reinf);
+  const bonus=res.state==='win'&&lossRate<=opt.bonusLoss?rd(res.allyMen0*opt.bonus):0;
+  const total=left+reinf+bonus, notes=[];
+  if(bonus) notes.push('損害が'+Math.round(opt.bonusLoss*100)+'%以下だったので、ほうびの後詰め '+bonus+'人が加わる');
+  const N=nextMap?capOf(nextMap):null;
+  return {lossRate,left,reinf,bonus,total,N,notes,army:res.army};
 }
-const API={TYPES,BEATS,SKILLS,SAKU,DEF,Battle,Grid,buildNav,navPath,projRoute,nextArmy,capOf,GROW,baseOf};
+
+const API={TYPES,BEATS,SKILLS,SAKU,DEF,Battle,Grid,buildNav,navPath,projRoute,nextArmy,capOf,formArmy,GROW,MIN_UNITS,baseOf};
 if(typeof module!=='undefined'&&module.exports) module.exports=API; else root.OshiroBattleSim=API;
 })(typeof window!=='undefined'?window:globalThis);

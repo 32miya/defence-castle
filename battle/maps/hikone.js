@@ -12,14 +12,13 @@ const MAP={
   duration:540,
   sunset:{at:.7},
 
-  /* 入口: 内堀に開く4つの門。部隊の上限＝4＋1 */
+  /* 入口: 内堀に開く4つの門。部隊の数＝4＋3 */
   gates:[
     {id:'ote',name:'大手門（南）',pos:[-60,176]},
     {id:'omote',name:'表門（東）',pos:[117,70]},
     {id:'kuro',name:'黒門（北東）',pos:[104,-60]},
     {id:'yamazaki',name:'山崎門（北西）',pos:[-66,-210]}
   ],
-  capBonus:1,
 
   general:{name:'井伊直政',title:'井伊の赤鬼',skill:{kind:'akazonae',v:.2,name:'井伊の赤備え',text:'騎馬隊の攻撃1.2倍。味方の士気が下がりにくい'}},
 
@@ -30,7 +29,9 @@ const MAP={
     {id:'a3',gen:'',name:'騎馬組',type:'kiba',men:340,slot:'horikiri'},
     {id:'a4',gen:'',name:'足軽二番組',type:'yari',men:300,slot:'nishi_saka'}
   ],
-  deploy:{yari:['tenbin','nishi_saka','kane_w'],yumi:['kane_e','nishi_e','sanju'],kiba:['horikiri','tenbin']},
+
+  /* 兵の総数はこの部隊の合計。「門の数＋3」部隊に自動で分けて、兵種ごとにこの順で配置する */
+  deploy:{yari:['tenbin','nishi_saka','horikiri'],yumi:['kane_e','nishi_e'],kiba:['horikiri','tenbin']},
 
   routes:[
     {id:'ote',gate:'ote',name:'大手',pts:[[-12,380],[-12,357],[-12,330],[-12,300],[-60,212],[-60,183],[-60,168],[-60,116],[-60,80],[30,74]].concat(TAIL)},
@@ -74,7 +75,7 @@ const MAP={
     [[-12,358],[-12,298]],[[356,130],[294,130]],[[46,-398],[46,-354]],[[-280,65],[-236,65]],[[-60,212],[-60,160]],[[152,70],[94,70]],[[152,-60],[88,-60]],[[-66,-264],[-66,-200]],[[0,84],[0,44]],[[0,22],[0,-2]]],
 
   enemy:{
-    side:'石田勢', scale:1,
+    side:'石田勢', scale:.88,
     trend:'5方向から攻める。大手・表門の兵は大堀切から鐘の丸、廊下橋、天秤櫓へ。黒門・山崎の兵は西の丸から本丸へ。三の手からは東の堀を渡って斜面を登る兵も来る。最後の本隊は石田三成',
     boss:{name:'石田三成',skill:{kind:'daiichi',name:'大一大万大吉',text:'敵全軍の士気が下がりにくい'}},
     waves:[

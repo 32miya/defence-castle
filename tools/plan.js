@@ -2,8 +2,7 @@
    node plan.js [noskill]   環境変数 MAP=城のid  CARRY=1 で持ち越しの兵数 */
 const S=require('../battle/sim.js'),MAPID=process.env.MAP||'matsumoto',MAP=require('../battle/maps/'+MAPID+'.js');
 const ENV=MAPID==='inuyama'?{h:require('./terrain.js').groundH0}:require('./env/'+MAPID+'.js');
-const PLAN={matsumoto:{yumi:'hon_w',kiba:'kuromon',yari:'taikomon'}}[MAPID]||{};
-const army=MAP.army.map(a=>Object.assign({},a,PLAN[a.type]?{slot:PLAN[a.type]}:{},process.env.CARRY?{men:Math.round(a.men*1.1)}:{}));
+const army=S.formArmy(MAP,Math.round(MAP.army.reduce((t,a)=>t+a.men,0)*(process.env.CARRY?1.1:1)));
 const b=new S.Battle(MAP,{army,h:ENV.h,block:ENV.block,water:ENV.water,floor:ENV.floor});
 const sk=process.argv[2]!=='noskill';
 while(b.state==='run'){ b.step(.5);
@@ -14,3 +13,4 @@ while(b.state==='run'){ b.step(.5);
   for(const k of A.filter(u=>u.type==='kiba'&&u.state!=='rout')){ const t=b.live('enemy').filter(e=>e.base==='yumi'&&e.state!=='rout'&&Math.hypot(e.x-k.x,e.z-k.z)<60)[0]; if(t&&k.order.kind!=='intercept') b.order(k.id,{kind:'intercept',target:t.id}); else if(!t&&k.order.kind!=='hold') b.order(k.id,{kind:'hold',slot:k.home}); }
 }
 const r=b.result(); console.log(JSON.stringify({map:MAPID,skills:sk,carry:!!process.env.CARRY,state:r.state,why:r.why,t:r.time|0,loss:Math.round(r.allyLost/r.allyMen0*100)+'%',enemy:r.enemyLost+'/'+r.enemyMen,army:r.army.map(a=>a.name+':'+a.men+'/'+a.men0).join(' ')}));
+if(process.env.DBG){ for(const e of b.live('enemy')) if(e.x>MAP.honmaru.x0&&e.x<MAP.honmaru.x1&&e.z>MAP.honmaru.z0&&e.z<MAP.honmaru.z1) console.log('IN',e.route.id,e.type,e.men,e.x|0,e.z|0); for(const u of b.units.filter(u=>u.side==='ally')) console.log('A',u.name,u.men,u.slot&&u.slot.id,u.order.kind,u.order.slot&&u.order.slot.id,u.x|0,u.z|0,u.state); }

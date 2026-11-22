@@ -9,13 +9,12 @@ const MAP={
   duration:480,                      /* 守り抜く時間（秒）。指示中の停止時間は数えない */
   sunset:{at:.62},                   /* 時間の62%で夕方の空にする */
 
-  /* 入口（門）。部隊の上限＝入口の数＋capBonus
+  /* 入口（門）。部隊の数＝入口の数＋3（最低の部隊数）
      犬山城は城内へ入る道が大手道ひとつ。搦手の兵は西から山すそを回り、大手道の下で合流する */
   gates:[
     {id:'ote',name:'大手門',pos:[0,94]},
     {id:'karamete',name:'搦手口（西の山すそ）',pos:[-150,26]}
   ],
-  capBonus:1,
 
   /* 味方の担当武将と特技 */
   general:{name:'織田信康',title:'犬山城主',skill:{kind:'kengo',v:.2,name:'後堅固の守り',text:'門・石垣・櫓の配置場所で守る部隊の損害を2割へらす'}},
@@ -29,6 +28,9 @@ const MAP={
 
   /* 敵の進軍ルート（入口から本丸まで）。順にたどる。
      点と点のあいだは、エンジンが建物・塀・崖をよけて通れる道を自動でつなぐ */
+  /* 兵の総数はこの部隊の合計。「門の数＋3」部隊に自動で分けて、兵種ごとにこの順で配置する */
+  deploy:{yari:['matsumon','kuromon'],yumi:['matsu_s','sugi_yagura'],kiba:['nakamon']},
+
   routes:[
     {id:'ote',gate:'ote',name:'大手',pts:[[0,138],[0,106],[0,82],[0,48],[0,9],[0,-1],[0,-37],[0,-47],[0,-62],[0,-72],[15,-80],[15,-101],[15,-111],[5,-124]]},
     {id:'karamete',gate:'karamete',name:'搦手',pts:[[-170,30],[0,56],[0,48],[0,9],[0,-1],[0,-37],[0,-47],[0,-62],[0,-72],[15,-80],[15,-101],[15,-111],[5,-124]]}
@@ -80,7 +82,7 @@ const MAP={
   keep:{x0:-190,x1:150,z0:-215,z1:150},
   /* 最初のカメラ */
   camera:{x:-6,z:-40,yaw:-.55,dist:175,pitch:.9},
-  next:{id:'matsumoto',castle:'松本城',url:'/matsumoto-castle/?battle',cap:4}
+  next:{id:'matsumoto',castle:'松本城',url:'/matsumoto-castle/?battle',units:6}
 };
 if(typeof module!=='undefined'&&module.exports) module.exports=MAP; else (root.OshiroBattleMaps=root.OshiroBattleMaps||{})[MAP.id]=MAP;
 })(typeof window!=='undefined'?window:globalThis);

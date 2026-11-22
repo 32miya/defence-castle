@@ -8,13 +8,12 @@ const MAP={
   goal:'援軍の到着まで守り抜け', winText:'小笠原の援軍が駆けつけ、武田勢は兵を引いた',
   duration:480,
 
-  /* 入口: 南の大手門と、東から太鼓門へ向かう道。部隊の上限＝入口2＋2 */
+  /* 入口。部隊の数＝入口の数＋3（最低の部隊数） */
   gates:[
     {id:'ote',name:'大手門（南）',pos:[-26.5,177]},
     {id:'higashi',name:'北東の口（外堀ぞいの道）',pos:[196,-190]},
     {id:'nishi',name:'西の堀（堀を渡って塀を越える）',pos:[-200,0]}
   ],
-  capBonus:1,
 
   general:{name:'小笠原長時',title:'信濃守護',skill:{kind:'kyuba',v:.15,name:'小笠原流弓馬術',text:'弓隊と騎馬隊の攻撃が1.15倍'}},
 
@@ -25,7 +24,9 @@ const MAP={
     {id:'a3',gen:'',name:'騎馬組',type:'kiba',men:320,slot:'kuromon'}
   ],
   /* 前の城から持ち越した軍勢を置く場所（兵種ごとに順に使う） */
-  deploy:{yari:['taikomon','hon_w','otemon'],yumi:['taiko_s','hon_w','hon_e'],kiba:['kuromae','taikomon','otemon']},
+
+  /* 兵の総数はこの部隊の合計。「門の数＋3」部隊に自動で分けて、兵種ごとにこの順で配置する */
+  deploy:{yari:['taikomon','kuromon'],yumi:['hon_w','taiko_s'],kiba:['kuromae','otemon']},
 
   routes:[
     {id:'ote',gate:'ote',name:'大手',pts:[[-20,246],[-20,232],[-20,207],[-26.5,200],[-26.5,170],[-17,166],[-17,150],[196,146],[196,44],[190,40],[150,40],[112,17],[58,17],[40,17]]},
@@ -58,7 +59,7 @@ const MAP={
   gatePass:[[[-26.5,201],[-26.5,170]],[[-17,167],[-17,150]],[[196,40],[150,40]],[[114,17],[56,17]]],
 
   enemy:{
-    side:'武田勢', scale:.85,
+    side:'武田勢', scale:1.05,
     trend:'騎馬が多い。大手門（南）と北東の外堀ぞいから太鼓門へ。二の手からは西の堀を渡り塀をよじ登る兵も来る。本隊は武田晴信（信玄）の騎馬',
     boss:{name:'武田晴信（信玄）',portrait:'boss_takeda.webp',skill:{kind:'yama',name:'動かざること山の如し',text:'大将の部隊は士気が下がりにくい'}},
     waves:[
@@ -73,7 +74,7 @@ const MAP={
   },
   keep:{x0:-200,x1:305,z0:-200,z1:252},
   camera:{x:90,z:60,yaw:-.35,dist:260,pitch:.9},
-  next:{id:'hikone',castle:'彦根城',url:'/32miya-32miya-hikone-castle/?battle',cap:5}
+  next:{id:'hikone',castle:'彦根城',url:'/32miya-32miya-hikone-castle/?battle',units:7}
 };
 if(typeof module!=='undefined'&&module.exports) module.exports=MAP; else (root.OshiroBattleMaps=root.OshiroBattleMaps||{})[MAP.id]=MAP;
 })(typeof window!=='undefined'?window:globalThis);
