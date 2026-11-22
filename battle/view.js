@@ -90,7 +90,8 @@ function buildBlock(){
   for(const r of MAP.routes) for(const q of r.pts) clear(q[0],q[1],1.6);
   OB.blockInfo={ms:Math.round(performance.now()-t0),tris,cells:D.reduce((s,v)=>s+v,0)};
   OB.blockData={D,W,H:Hh,c,x0:K.x0,z0:K.z0};
-  return (x,z)=>{ const i=Math.round((x-K.x0)/c),j=Math.round((z-K.z0)/c); if(i<0||j<0||i>=W||j>=Hh) return false;
+  const wat=IY.isWater||null;
+  return (x,z)=>{ if(wat&&wat(x,z)) return true; const i=Math.round((x-K.x0)/c),j=Math.round((z-K.z0)/c); if(i<0||j<0||i>=W||j>=Hh) return false;
     /* 1.5mのマスの中心のまわりで判定（細い塀も逃さない） */
     for(let dj=-1;dj<=1;dj++) for(let di=-1;di<=1;di++){ const ii=i+di,jj=j+dj; if(ii>=0&&jj>=0&&ii<W&&jj<Hh&&D[jj*W+ii]&&(Math.abs(di)+Math.abs(dj)<2)) return true; } return false; };
 }
@@ -461,14 +462,22 @@ const STORE='oshiroBattle.v1';
 function loadSave(){ try{ return JSON.parse(localStorage.getItem(STORE)||'{}'); }catch(e){ return {}; } }
 function saveSave(s){ try{ localStorage.setItem(STORE,JSON.stringify(s)); }catch(e){} }
 function clearUnits(){ for(const ic of UI.icons.values()) ic.remove(); UI.icons.clear(); arrows.length=0; }
+/* この合戦の軍勢: 前の城を守り抜いて持ち越した軍勢があればそれを使う（後詰め込み）。なければ設定データの部隊 */
+function armyFor(){ const sv=loadSave(),cap=SIM.capOf(MAP);
+  if(!(sv.army&&sv.army.length&&sv.armyFor===MAP.id)) return {army:MAP.army.map(a=>Object.assign({},a)),carried:false};
+  let A=sv.army.filter(a=>a.men>0).map(a=>Object.assign({},a)); const notes=[];
+  while(A.length>cap){ const ex=A.pop(),per=Math.floor(ex.men/A.length/10)*10; let rest=ex.men; for(const a of A){ a.men+=per; rest-=per; } A[0].men+=rest; notes.push(ex.name+'の兵は他の部隊に加わった（上限'+cap+'）'); }
+  const used={},D=MAP.deploy||{}; A.forEach((a,i)=>{ const L=D[a.type]||[]; const k=used[a.type]=(used[a.type]||0); a.slot=L[k%Math.max(1,L.length)]||MAP.slots[i%MAP.slots.length].id; used[a.type]++; if(!a.id) a.id='c'+i; a.dx=(i%2)*4; });
+  return {army:A,carried:true,notes}; }
 function startBattle(){
   Object.assign(CAM,MAP.camera||{});
   clearUnits(); bench=null; sunsetDone=false; IY.applyTime(1); OB.shadowDirty=3;
-  B=new SIM.Battle(MAP,{army:MAP.army,h:H,block:OB.block}); drawRoutes(B);
+  const AR=armyFor(); B=new SIM.Battle(MAP,{army:AR.army,h:H,block:OB.block}); drawRoutes(B);
   buildCards(B); buildLines(); setLines(0); $('obModal').hidden=true; $('obCards').hidden=false; $('obLines').hidden=false; $('obHud').hidden=!QS.has('hud');
   UI.pauseManual=false; finish(); toast(`<b>${MAP.title}</b>${MAP.goal}！`,'big'); $('obSnd').textContent=SND.on?'🔊':'🔇'; sfx('horagai'); sfx('taiko',0,1.5);
 }
 function showBrief(){
+  const AR=armyFor();
   Object.assign(CAM,{x:-4,z:-95,dist:215});
   const cap=SIM.capOf(MAP),E=MAP.enemy,cnt={};
   for(const w of E.waves) for(const u of w.units) cnt[u.type]=(cnt[u.type]||0)+u.men;
@@ -478,8 +487,8 @@ function showBrief(){
   const M=$('obModal'); M.hidden=false; M.innerHTML=`<div class="obSheet">
   <p class="obEra">第${MAP.stage}の城　${MAP.castle}</p><h1>${MAP.title}</h1><p class="obSub">${MAP.era}</p>
   <div class="obCond"><div><small>勝利</small><b>${MAP.goal}</b>（${Math.round(MAP.duration/60)}分）</div><div><small>敗北</small><b>本丸に敵が入る</b></div></div>
-  <h2>我が軍　<small>${MAP.army.length}部隊／上限${cap}（入口${MAP.gates.length}＋${MAP.capBonus}）</small></h2>
-  <ul class="obArmy">${MAP.army.map(a=>`<li><span class="k t-${a.type}">${G(a.type)}</span><b>${a.name}</b>${T[a.type].name} ${a.men}人<small>${role(a.type)}</small></li>`).join('')}</ul>
+  <h2>我が軍　<small>${AR.army.length}部隊／上限${cap}（入口${MAP.gates.length}＋${MAP.capBonus}）${AR.carried?'・前の城から持ち越し（後詰め込み）':''}</small></h2>
+  <ul class="obArmy">${AR.army.map(a=>`<li><span class="k t-${a.type}">${G(a.type)}</span><b>${a.name}</b>${T[a.type].name} ${a.men}人<small>${role(a.type)}</small></li>`).join('')}</ul>
   <p class="obGen">担当武将 <b>${MAP.general.name}</b>（${MAP.general.title}）特技「${MAP.general.skill.name}」${MAP.general.skill.text}</p>
   <h2>敵の傾向　<small>${E.side}・${E.waves.length}波</small></h2>
   <p class="obMix">${mix}</p><p>${E.trend}。大将 <b>${E.boss.name}</b>（特技「${E.boss.skill.name}」${E.boss.skill.text}）</p>
@@ -489,8 +498,8 @@ function showBrief(){
   $('obStart').onclick=startBattle; $('obBackSt').onclick=goStages; $('obBenchBtn').onclick=showBenchSetup;
 }
 function showResult(){
-  const r=B.result(),cap=SIM.capOf(MAP),nx=SIM.nextArmy(r,cap),win=r.state==='win',lossP=Math.round(nx.lossRate*100);
-  const sv=loadSave(); sv[MAP.id]=Object.assign(sv[MAP.id]||{},{played:(sv[MAP.id]&&sv[MAP.id].played||0)+1}); if(win){ sv[MAP.id].cleared=true; sv[MAP.id].bestLoss=Math.min(sv[MAP.id].bestLoss===undefined?100:sv[MAP.id].bestLoss,lossP); sv.army=nx.army.map(a=>({id:a.id,gen:a.gen,name:a.name,type:a.type,men:a.menNext})); sv.next=MAP.next&&MAP.next.castle; } saveSave(sv);
+  const r=B.result(),cap=(MAP.next&&MAP.next.cap)||SIM.capOf(MAP),nx=SIM.nextArmy(r,cap),win=r.state==='win',lossP=Math.round(nx.lossRate*100);
+  const sv=loadSave(); sv[MAP.id]=Object.assign(sv[MAP.id]||{},{played:(sv[MAP.id]&&sv[MAP.id].played||0)+1}); if(win){ sv[MAP.id].cleared=true; sv[MAP.id].bestLoss=Math.min(sv[MAP.id].bestLoss===undefined?100:sv[MAP.id].bestLoss,lossP); sv.army=nx.army.map(a=>({id:a.id,gen:a.gen,name:a.name,type:a.type,men:a.menNext})); sv.next=MAP.next&&MAP.next.castle; sv.armyFor=MAP.next&&MAP.next.id; } saveSave(sv);
   if(win) IY.applyTime(MAP.goal.includes('日没')?3:2); OB.shadowDirty=3;
   const M=$('obModal'); M.hidden=false; $('obOrder').hidden=true; $('obPrompt').hidden=true;
   M.innerHTML=`<div class="obSheet ${win?'win':'lose'}"><p class="obEra">${MAP.castle}</p><h1>${win?'勝利':'落城'}</h1><p class="obSub">${r.why}（${fmt(r.time)}）</p>
@@ -499,7 +508,7 @@ function showResult(){
   <table class="obTab"><tr><th>部隊</th><th>合戦前</th><th>残り</th><th>合流</th><th>後詰め</th><th>次</th></tr>${nx.army.map(a=>{ const o=r.army.find(q=>q.id===a.id); return `<tr><td><span class="k t-${a.type}">${G(a.type)}</span>${a.name}${a.isNew?' <em>新</em>':''}</td><td>${o?o.men0:'-'}</td><td>${a.isNew?'-':a.left}</td><td>${a.join?'+'+a.join:'-'}</td><td>+${a.reinf||0}</td><td><b>${a.menNext}</b></td></tr>`; }).join('')}</table>
   <p class="obNote">${nx.notes.join('<br>')||'損害が2割以下なら、次の城で部隊が1つ増えます'}<br>次の城の部隊の上限は「入口の数＋補正」で決まります。敵の兵数も城ごとに増えます。</p>`:
   `<p class="obNote">本丸までの道は大手と搦手の2つ。三すくみを見て、門で足止めしながら弓で削るのがコツです。</p>`}
-  <div class="obAct"><button class="obBtn obGo" id="obAgain">もう一度</button><button class="obBtn" id="obToBrief">出陣前の画面へ</button><button class="obBtn" id="obToSt">城選びへ</button></div></div>`;
+  <div class="obAct">${win&&MAP.next&&MAP.next.url?`<a class="obBtn obGo" href="${MAP.next.url}">次の城へ（${MAP.next.castle}）</a>`:''}<button class="obBtn${win&&MAP.next&&MAP.next.url?'':' obGo'}" id="obAgain">もう一度</button><button class="obBtn" id="obToBrief">出陣前の画面へ</button><button class="obBtn" id="obToSt">城選びへ</button></div></div>`;
   $('obAgain').onclick=startBattle; $('obToBrief').onclick=()=>{ leaveBattle(); showBrief(); }; $('obToSt').onclick=goStages;
 }
 

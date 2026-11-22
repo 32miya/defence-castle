@@ -146,10 +146,11 @@ function show(id){ for(const s of document.querySelectorAll('.scr')) s.hidden=s.
 function toast(t){ const d=document.createElement('div'); d.className='toast'; d.textContent=t; document.body.appendChild(d); setTimeout(()=>d.style.opacity=0,1800); setTimeout(()=>d.remove(),2400); }
 function renderStages(){
   const all=STAGES.every(s=>sv[s.id]&&sv[s.id].cleared);
-  const row=(s,i,hid)=>{ const ok=!!s.url&&(!hid||all),cl=sv[s.id]&&sv[s.id].cleared,nm=hid&&!all?'？？？':s.name;
-    return `<li class="${ok?'ok':'lock'}${cl?' cl':''}" data-i="${hid?'h':i}"><span class="no">${hid?'隠し':'第'+NUM[i]+'の城'}</span><b>${nm}</b><small>${hid&&!all?'すべての城を守り抜くと現れる':s.pref+'・'+s.feat}</small><em>${cl?'攻略済'+(sv[s.id].bestLoss!==undefined?'<br>損害'+sv[s.id].bestLoss+'%':''):ok?'出陣できる':'準備中'}</em></li>`; };
+  const free=/[?&]all\b/.test(location.search);
+  const row=(s,i,hid)=>{ const prevOk=hid?all:(i===0||(sv[STAGES[i-1].id]&&sv[STAGES[i-1].id].cleared)||free),ok=!!s.url&&prevOk,cl=sv[s.id]&&sv[s.id].cleared,nm=hid&&!all?'？？？':s.name;
+    return `<li class="${ok?'ok':'lock'}${cl?' cl':''}" data-i="${hid?'h':i}"><span class="no">${hid?'隠し':'第'+NUM[i]+'の城'}</span><b>${nm}</b><small>${hid&&!all?'すべての城を守り抜くと現れる':s.pref+'・'+s.feat}</small><em>${cl?'攻略済'+(sv[s.id].bestLoss!==undefined?'<br>損害'+sv[s.id].bestLoss+'%':''):ok?'出陣できる':s.url?'前の城を<br>守り抜くと':'準備中'}</em></li>`; };
   $('stList').innerHTML=STAGES.map((s,i)=>row(s,i)).join('')+row(HIDDEN,10,true);
-  $('stList').querySelectorAll('li').forEach(li=>li.onclick=()=>{ const s=li.dataset.i==='h'?HIDDEN:STAGES[+li.dataset.i]; if(li.classList.contains('ok')) location.href=s.url; else toast('この城は準備中です'); });
+  $('stList').querySelectorAll('li').forEach(li=>li.onclick=()=>{ const s=li.dataset.i==='h'?HIDDEN:STAGES[+li.dataset.i]; if(li.classList.contains('ok')) location.href=s.url; else toast(s.url?'前の城を守り抜くと出陣できます':'この城は準備中です'); });
   $('army').textContent=sv.army?'いまの軍勢：'+sv.army.map(a=>a.name+' '+a.men+'人').join('・'):'';
 }
 const done=STAGES.filter(s=>sv[s.id]&&sv[s.id].cleared).length;

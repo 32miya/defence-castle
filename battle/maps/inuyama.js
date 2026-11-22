@@ -80,7 +80,7 @@ const MAP={
   keep:{x0:-190,x1:150,z0:-215,z1:150},
   /* 最初のカメラ */
   camera:{x:-6,z:-40,yaw:-.55,dist:175,pitch:.9},
-  next:{castle:'松本城',note:'準備中'}
+  next:{id:'matsumoto',castle:'松本城',url:'/matsumoto-castle/?battle',cap:4}
 };
 if(typeof module!=='undefined'&&module.exports) module.exports=MAP; else (root.OshiroBattleMaps=root.OshiroBattleMaps||{})[MAP.id]=MAP;
 })(typeof window!=='undefined'?window:globalThis);

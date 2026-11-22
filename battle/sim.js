@@ -271,7 +271,7 @@ class Battle{
   }
   combat(all,dt){
     const C=this.C;
-    for(const u of all) u.hitBy.length=0;
+    for(const u of all){ u.hitBy.length=0; u.m0=u.morale; }
     for(const u of all){ u.engaged=false; }
     for(const u of all){
       if(u.state==='rout'||!u.target) continue; const t=u.target; if(t.state==='dead'||t.state==='gone'){ u.target=null; continue; }
@@ -280,6 +280,7 @@ class Battle{
       u.engaged=true; if(d<=C.contact+.5) t.engaged=true;
       let m=1; if(BEATS[u.base]===t.base) m=C.adv; else if(BEATS[t.base]===u.base) m=C.dis;
       let f=T.atk*m*(0.55+0.45*u.morale/100);
+      if(u.side==='ally'&&this.skill&&this.skill.kind==='kyuba'&&(u.base==='yumi'||u.base==='kiba')) f*=1+(this.skill.v||.15);
       if(this.buff(u,'yari')) f*=1.3; if(this.buff(u,'yumi')||this.buff(u,'teppo')) f*=1.8; if(this.buff(u,'kiba')) f*=1.5; if(u.kobuUntil>this.time) f*=1.2;
       if(this.buff(u,'kiba')&&d<=C.contact+.5&&!u.charged.has(t.id)){ u.charged.add(t.id); t.morale-=18; this.events.push({k:'chargeHit',u,t}); }
       if(!T.melee&&d<C.contact) f*=.5;                                         /* 弓が斬り合いに巻き込まれた */
@@ -298,6 +299,7 @@ class Battle{
     /* 損害と士気 */
     for(const u of all){
       if(u.state==='dead'||u.state==='gone') continue;
+      const yama=u.boss&&this.bossSkill&&this.bossSkill.kind==='yama';
       const lost=Math.min(u.men,u.dmg||0); u.dmg=0;
       if(lost>0){ u.menF=(u.menF===undefined?u.men:u.menF)-lost; const nm=Math.max(0,Math.ceil(u.menF-1e-6)); const k=u.men-nm; u.men=nm;
         if(u.side==='ally') this.stats.allyLost+=k; else this.stats.enemyLost+=k;
@@ -309,6 +311,7 @@ class Battle{
         } else if(!u.engaged){ u.morale=Math.min(100,u.morale+2*dt); u.flank=false; }
       }
       if(u.men<=0){ u.state='dead'; u.men=0; this.events.push({k:'dead',u}); if(u.boss) this.bossDown(u); continue; }
+      if(yama&&u.morale<u.m0) u.morale=u.m0-(u.m0-u.morale)*.5;
       if(u.morale<=0&&u.state!=='rout'){ u.morale=0; u.state='rout'; u.routT=C.routTime; u.target=null; this.events.push({k:'rout',u});
         if(u.side==='ally'){ const sl=this.retreatSlot(u); this.goTo(u,sl.pos[0],sl.pos[1]); u.order={kind:'hold',x:sl.pos[0],z:sl.pos[1],slot:sl}; }
         else { this.goTo(u,u.route.pts[0][0],u.route.pts[0][1]); if(u.boss) this.bossDown(u); } }

@@ -4,7 +4,7 @@
 (function(root){
 const STAGES=[
   {id:'inuyama',  name:'犬山城',    pref:'尾張',feat:'木曽川を背にした後堅固の城',url:'/32miya-inuyama-castle/?battle'},
-  {id:'matsumoto',name:'松本城',    pref:'信濃',feat:'堀に囲まれた平城'},
+  {id:'matsumoto',name:'松本城',    pref:'信濃',feat:'堀に囲まれた平城・武田の騎馬',url:'/matsumoto-castle/?battle'},
   {id:'hikone',   name:'彦根城',    pref:'近江',feat:'天秤櫓と登り石垣'},
   {id:'matsuyama',name:'松山城',    pref:'伊予',feat:'門と櫓が連なる連立式'},
   {id:'bitchu',   name:'備中松山城',pref:'備中',feat:'雲海に浮かぶ山城・急斜面'},
