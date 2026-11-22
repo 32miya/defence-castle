@@ -117,7 +117,7 @@ class Battle{
     this.h=opt.h||(()=>0);
     this.time=0; this.acc=0; this.state='run'; this.events=[]; this.units=[]; this.nextId=1;
     this.duration=opt.duration||map.duration||480;
-    this.enemyScale=opt.enemyScale||1;
+    this.enemyScale=opt.enemyScale||(map.enemy&&map.enemy.scale)||1;
     this.routes={}; for(const r of map.routes) this.routes[r.id]=prepRoute(Object.assign({},r));
     this.slots=map.slots.map(s=>Object.assign({},s));
     this.nav=buildNav(map);
