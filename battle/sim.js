@@ -332,6 +332,7 @@ class Battle{
       if(this.grid){ if(this.grid.waterAt(u.x,u.z)&&!(sui&&u.side==='enemy')) f*=.6; if(this.grid.wallAt(u.x,u.z)) f*=.5; }
       if(u.side==='ally'&&this.skill&&this.skill.kind==='akazonae'&&u.base==='kiba') f*=1+(this.skill.v||.2);
       if(u.side==='ally'&&this.skill&&this.skill.kind==='kyuba'&&(u.base==='yumi'||u.base==='kiba')) f*=1+(this.skill.v||.15);
+      if(u.side==='enemy'&&this.bossSkill&&this.bossSkill.kind==='yumi3'&&u.base==='yumi') f*=1+(this.bossSkill.v||.25);
       if(u.side==='ally'&&this.skill&&this.skill.kind==='yari7'&&u.base==='yari') f*=1+(this.skill.v||.2);
       if(u.side==='ally'){ const sl=this.slotAt(u); if(sl&&sl.ambush) f*=sl.ambush; }   /* 伏兵の場所（松山城の隠門など） */
       if(this.buff(u,'yari')) f*=1.3; if(this.buff(u,'yumi')||this.buff(u,'teppo')) f*=1.8; if(this.buff(u,'kiba')) f*=1.5; if(u.kobuUntil>this.time) f*=1.2;

@@ -32,7 +32,7 @@ function lighten(){
   const t0=performance.now();
   IY.setQuality('low');
   /* 現代の建物は使わないので捨てる */
-  disposeTree(IY.GM); if(IY.GM.parent) IY.GM.parent.remove(IY.GM);
+  for(const g of [IY.GM].concat(IY.drop||[])){ disposeTree(g); if(g.parent) g.parent.remove(g); }   /* 合戦で使わない時代の建物（城によっては江戸時代も）は捨てる */
   if(IY.GNPC) IY.GNPC.visible=false;
   const K=MAP.keep; let tri0=0,tri1=0;
   const inK=(x,z)=>x>K.x0&&x<K.x1&&z>K.z0&&z<K.z1;
@@ -72,6 +72,7 @@ function buildBlock(){
     let p=o; while(p){ if(!p.visible) return; p=p.parent; }
     const g=o.geometry,P=g.attributes.position,I=g.index?g.index.array:null,n=I?I.length:P.count,W2=o.matrixWorld,id=W2.equals(idm);
     if(!g.boundingBox) g.computeBoundingBox(); const bb=g.boundingBox.clone().applyMatrix4(W2); if(bb.max.x<K.x0||bb.min.x>K.x1||bb.max.z<K.z0||bb.min.z>K.z1) return;
+    if(mats.some(m=>m.vertexColors)&&g.attributes.color&&bb.max.x-bb.min.x>150&&bb.max.z-bb.min.z>150) return;   /* まわりの山（景色）は地面と同じ */
     for(let t=0;t<n;t+=3){ const ia=I?I[t]:t,ib=I?I[t+1]:t+1,ic=I?I[t+2]:t+2;
       a.fromBufferAttribute(P,ia); b.fromBufferAttribute(P,ib); d.fromBufferAttribute(P,ic); if(!id){ a.applyMatrix4(W2); b.applyMatrix4(W2); d.applyMatrix4(W2); }
       const ha=a.y-H(a.x,a.z),hb=b.y-H(b.x,b.z),hc=d.y-H(d.x,d.z); if(Math.max(ha,hb,hc)<.9||Math.min(ha,hb,hc)>30) continue; tris++;

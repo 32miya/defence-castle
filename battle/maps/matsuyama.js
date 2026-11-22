@@ -110,7 +110,7 @@ const MAP={
   },
   keep:{x0:-580,x1:262,z0:-356,z1:240},
   camera:{x:-110,z:-60,yaw:-.35,dist:380,pitch:.9},
-  next:{id:'bitchu',castle:'備中松山城',note:'準備中'}
+  next:{id:'bitchu',castle:'備中松山城',url:'/32miya-32miya-bitchu-matsuyama-castle-/?battle',units:6}
 };
 if(typeof module!=='undefined'&&module.exports) module.exports=MAP; else (root.OshiroBattleMaps=root.OshiroBattleMaps||{})[MAP.id]=MAP;
 })(typeof window!=='undefined'?window:globalThis);
