@@ -123,7 +123,7 @@ html.obattle:not(.obready) body::after{content:"陣を敷いております…";
 #obPrompt em{flex-basis:100%;text-align:center;font-style:normal;font-size:12px;color:#ffe3a3;min-height:1em} #obPrompt em .good{color:#9be38a} #obPrompt em .bad{color:#ff8c7c}
 #obPrompt .obGo:disabled{opacity:.4;filter:grayscale(.6)}
 .obU.buff{box-shadow:0 0 0 3px #ffd24a,0 0 16px 4px rgba(255,190,60,.8)}
-.obGate{position:absolute;left:0;top:0;transform:translate(-50%,-50%);display:none;pointer-events:auto;border:0;border-radius:8px;padding:3px 8px;background:rgba(22,19,15,.88);border:1px solid var(--ln);font-size:11px;white-space:nowrap;cursor:pointer}
+.obGate{position:absolute;left:0;top:0;transform:translate(-50%,-50%);display:block;pointer-events:auto;border:0;border-radius:8px;padding:3px 8px;background:rgba(22,19,15,.88);border:1px solid var(--ln);font-size:11px;white-space:nowrap;cursor:pointer}
 .obGate b{display:block;font-weight:700} .obGate i{display:block;height:3px;background:rgba(255,255,255,.15);border-radius:2px;overflow:hidden;margin-top:2px} .obGate s{display:block;height:100%;background:#e8a33a;text-decoration:none}
 .obGate.closed{border-color:#e8a33a;color:#ffd98a} .obGate.pick{background:rgba(192,57,43,.9);border-color:#ffd98a;animation:obPulse .9s infinite}
 #obGates{position:absolute;inset:0;pointer-events:none;overflow:hidden}

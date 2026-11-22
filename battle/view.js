@@ -325,7 +325,7 @@ function drawPreview(){ clearPrev(); const m=UI.mode,p=UI.pend,u=UI.sel; if(!p) 
   $('obPromptI').innerHTML=info; }
 
 /* 門の札（閉じた門の耐久・門を選ぶとき） */
-const GMK=[]; MAP.narrow&&MAP.narrow.forEach((g,i)=>{ const m=el('button','obGate',`<b>${g.name||'門'}</b><i><s></s></i>`); m.onclick=e=>{ e.stopPropagation(); if(UI.mode==='gate'&&B&&B.gateOpenAt(B.gates[i])) setPend({gate:i}); }; $('obGates').appendChild(m); GMK.push(m); });
+const GMK=[]; MAP.narrow&&MAP.narrow.forEach((g,i)=>{ const m=el('button','obGate',`<b>${g.name||'門'}</b><i><s></s></i>`); m.onclick=e=>{ e.stopPropagation(); if(UI.mode==='gate'&&B&&B.gateOpenAt(B.gates[i])) setPend({gate:i}); }; m.style.display='none'; $('obGates').appendChild(m); GMK.push(m); });
 function updGates(){ if(!B||bench){ for(const m of GMK) m.style.display='none'; return; }
   B.gates.forEach((g,i)=>{ const m=GMK[i],closed=!B.gateOpenAt(g),show=closed||UI.mode==='gate'; if(!show){ m.style.display='none'; return; }
     const p=project(g.pos[0],H(g.pos[0],g.pos[1])+5,g.pos[1]); if(!p){ m.style.display='none'; return; } m.style.display=''; m.style.transform=`translate3d(${p[0]|0}px,${p[1]|0}px,0)`;
