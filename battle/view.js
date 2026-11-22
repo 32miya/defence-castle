@@ -58,6 +58,42 @@ function lighten(){
   OB.shadowDirty=4;
   OB.lightInfo={ms:Math.round(performance.now()-t0),removedMeshes:kill.length,trisCut:tri0-tri1};
 }
+/* 建物・塀・門の「通れない所」を3Dマップの形から読み取る（城ごとにデータを書かなくてよい）
+   地面から0.9m以上の高さがある三角形を、上から見た形でマス目に塗る。門の通り道と配置場所は通れるようにあける */
+function buildBlock(){
+  const t0=performance.now(),K=MAP.keep,c=.75,W=Math.ceil((K.x1-K.x0)/c)+1,Hh=Math.ceil((K.z1-K.z0)/c)+1,D=new Uint8Array(W*Hh);
+  const mark=(x,z)=>{ const i=Math.round((x-K.x0)/c),j=Math.round((z-K.z0)/c); if(i>=0&&j>=0&&i<W&&j<Hh) D[j*W+i]=1; };
+  const skip=new Set([IY.M.terrain,IY.M.leaf,IY.M.trunk,IY.waterMat,IY.M.glass]);
+  const a=new THREE.Vector3(),b=new THREE.Vector3(),d=new THREE.Vector3(),idm=new THREE.Matrix4(); let tris=0;
+  IY.scene.updateMatrixWorld(true);
+  IY.scene.traverse(o=>{
+    if(!o.isMesh||o.isInstancedMesh||!o.visible||!o.geometry||!o.geometry.attributes.position) return;
+    const mats=Array.isArray(o.material)?o.material:[o.material]; if(mats.some(m=>skip.has(m)||m.transparent)) return;
+    let p=o; while(p){ if(!p.visible) return; p=p.parent; }
+    const g=o.geometry,P=g.attributes.position,I=g.index?g.index.array:null,n=I?I.length:P.count,W2=o.matrixWorld,id=W2.equals(idm);
+    if(!g.boundingBox) g.computeBoundingBox(); const bb=g.boundingBox.clone().applyMatrix4(W2); if(bb.max.x<K.x0||bb.min.x>K.x1||bb.max.z<K.z0||bb.min.z>K.z1) return;
+    for(let t=0;t<n;t+=3){ const ia=I?I[t]:t,ib=I?I[t+1]:t+1,ic=I?I[t+2]:t+2;
+      a.fromBufferAttribute(P,ia); b.fromBufferAttribute(P,ib); d.fromBufferAttribute(P,ic); if(!id){ a.applyMatrix4(W2); b.applyMatrix4(W2); d.applyMatrix4(W2); }
+      const ha=a.y-H(a.x,a.z),hb=b.y-H(b.x,b.z),hc=d.y-H(d.x,d.z); if(Math.max(ha,hb,hc)<.9||Math.min(ha,hb,hc)>30) continue; tris++;
+      /* 辺をなぞる（縦の壁は上から見ると線になるため） */
+      for(const [p,q] of [[a,b],[b,d],[d,a]]){ const L=Math.hypot(q.x-p.x,q.z-p.z),m=Math.max(1,Math.ceil(L/(c*.5))); for(let k=0;k<=m;k++) mark(p.x+(q.x-p.x)*k/m,p.z+(q.z-p.z)*k/m); }
+      /* 面の内側（屋根・建物の床） */
+      const x0=Math.min(a.x,b.x,d.x),x1=Math.max(a.x,b.x,d.x),z0=Math.min(a.z,b.z,d.z),z1=Math.max(a.z,b.z,d.z); if((x1-x0)<c&&(z1-z0)<c) continue;
+      const den=(b.z-d.z)*(a.x-d.x)+(d.x-b.x)*(a.z-d.z); if(Math.abs(den)<1e-6) continue;
+      for(let x=Math.ceil((x0-K.x0)/c)*c+K.x0;x<=x1;x+=c) for(let z=Math.ceil((z0-K.z0)/c)*c+K.z0;z<=z1;z+=c){ const l1=((b.z-d.z)*(x-d.x)+(d.x-b.x)*(z-d.z))/den,l2=((d.z-a.z)*(x-d.x)+(a.x-d.x)*(z-d.z))/den; if(l1>=-.01&&l2>=-.01&&l1+l2<=1.01) mark(x,z); } }
+  });
+  /* 門の通り道・配置場所・ルートの点はあける */
+  const clear=(x,z,r)=>{ for(let i=Math.floor((x-r-K.x0)/c);i<=Math.ceil((x+r-K.x0)/c);i++) for(let j=Math.floor((z-r-K.z0)/c);j<=Math.ceil((z+r-K.z0)/c);j++){ if(i<0||j<0||i>=W||j>=Hh) continue; if(Math.hypot(K.x0+i*c-x,K.z0+j*c-z)<=r) D[j*W+i]=0; } };
+  for(const g of MAP.narrow||[]) clear(g.pos[0],g.pos[1],Math.min(3.2,(g.r||7)*.45));
+  for(const g of MAP.gatePass||[]){ const [p,q]=g,L=Math.hypot(q[0]-p[0],q[1]-p[1]); for(let k=0;k<=L;k+=.5) clear(p[0]+(q[0]-p[0])*k/L,p[1]+(q[1]-p[1])*k/L,1.8); }
+  for(const s2 of MAP.slots) clear(s2.pos[0],s2.pos[1],2.5);
+  for(const r of MAP.routes) for(const q of r.pts) clear(q[0],q[1],1.6);
+  OB.blockInfo={ms:Math.round(performance.now()-t0),tris,cells:D.reduce((s,v)=>s+v,0)};
+  OB.blockData={D,W,H:Hh,c,x0:K.x0,z0:K.z0};
+  return (x,z)=>{ const i=Math.round((x-K.x0)/c),j=Math.round((z-K.z0)/c); if(i<0||j<0||i>=W||j>=Hh) return false;
+    /* 1.5mのマスの中心のまわりで判定（細い塀も逃さない） */
+    for(let dj=-1;dj<=1;dj++) for(let di=-1;di<=1;di++){ const ii=i+di,jj=j+dj; if(ii>=0&&jj>=0&&ii<W&&jj<Hh&&D[jj*W+ii]&&(Math.abs(di)+Math.abs(dj)<2)) return true; } return false; };
+}
 function disposeTree(g){ g.traverse(o=>{ if(o.geometry) o.geometry.dispose(); }); }
 function compactInstances(o,inK){ const m=new THREE.Matrix4(),p=new THREE.Vector3(),c=new THREE.Color(); let j=0; const n=o.count;
   for(let i=0;i<n;i++){ o.getMatrixAt(i,m); p.setFromMatrixPosition(m).applyMatrix4(o.matrixWorld); if(inK(p.x,p.z)){ if(i!==j){ o.setMatrixAt(j,m); if(o.instanceColor){ o.getColorAt(i,c); o.setColorAt(j,c); } } j++; } }
@@ -156,7 +192,7 @@ function drawRocks(dt){ if(!OB.rockMesh) return; let n=0; for(let i=rockFx.lengt
   for(let i=dusts.length-1;i>=0;i--){ const D=dusts[i]; D.t+=dt; const k=D.t/1.2; if(k>=1){ IY.scene.remove(D.m); D.m.geometry.dispose(); D.m.material.dispose(); dusts.splice(i,1); continue; } const sc=1+k*D.r/2.2; D.m.scale.set(sc,1,sc); D.m.material.opacity=.7*(1-k); } }
 
 /* 進軍ルートを地面に薄く描く */
-function drawRoutes(){ OB.routeLines=[]; for(const r of MAP.routes){ const pts=[]; for(let i=1;i<r.pts.length;i++){ const [ax,az]=r.pts[i-1],[bx,bz]=r.pts[i],L=Math.hypot(bx-ax,bz-az); for(let t=0;t<L;t+=2){ const x=ax+(bx-ax)*t/L,z=az+(bz-az)*t/L; pts.push(new THREE.Vector3(x,H(x,z)+.6,z)); } }
+function drawRoutes(b){ for(const l of OB.routeLines||[]){ IY.scene.remove(l); l.geometry.dispose(); } OB.routeLines=[]; for(const r of Object.values(b.routes)){ const pts=[]; for(let i=1;i<r.pts.length;i++){ const [ax,az]=r.pts[i-1],[bx,bz]=r.pts[i],L=Math.hypot(bx-ax,bz-az); for(let t=0;t<L;t+=2){ const x=ax+(bx-ax)*t/L,z=az+(bz-az)*t/L; pts.push(new THREE.Vector3(x,H(x,z)+.6,z)); } }
   const g=new THREE.BufferGeometry().setFromPoints(pts); const ln=new THREE.Line(g,new THREE.LineDashedMaterial({color:0xd0402c,dashSize:3,gapSize:2.2,transparent:true,opacity:.75,fog:false})); ln.computeLineDistances(); IY.scene.add(ln); OB.routeLines.push(ln); } }
 
 /* ================= カメラ ================= */
@@ -428,7 +464,7 @@ function clearUnits(){ for(const ic of UI.icons.values()) ic.remove(); UI.icons.
 function startBattle(){
   Object.assign(CAM,MAP.camera||{});
   clearUnits(); bench=null; sunsetDone=false; IY.applyTime(1); OB.shadowDirty=3;
-  B=new SIM.Battle(MAP,{army:MAP.army,h:H});
+  B=new SIM.Battle(MAP,{army:MAP.army,h:H,block:OB.block}); drawRoutes(B);
   buildCards(B); buildLines(); setLines(0); $('obModal').hidden=true; $('obCards').hidden=false; $('obLines').hidden=false; $('obHud').hidden=!QS.has('hud');
   UI.pauseManual=false; finish(); toast(`<b>${MAP.title}</b>${MAP.goal}！`,'big'); $('obSnd').textContent=SND.on?'🔊':'🔇'; sfx('horagai'); sfx('taiko',0,1.5);
 }
@@ -490,7 +526,7 @@ function showBenchSetup(){
 }
 function startBench(auto){
   clearUnits(); IY.applyTime(1); OB.shadowDirty=3;
-  B=new SIM.Battle(MAP,{army:[],h:H,waves:[],duration:1e9}); B.checkEnd=function(){}; bench={t:0,auto,phase:0,last:0,res:null};
+  B=new SIM.Battle(MAP,{army:[],h:H,waves:[],duration:1e9,block:OB.block}); drawRoutes(B); B.checkEnd=function(){}; bench={t:0,auto,phase:0,last:0,res:null};
   BEN.auto=auto; if(auto){ BEN.ally=4; BEN.enemy=8; BEN.log=[]; }
   $('obModal').hidden=true; $('obCards').hidden=true; $('obLines').hidden=true; $('obHud').hidden=false; $('obWave').textContent='負荷テスト';
   const H2=$('obHud'); H2.innerHTML='<pre id="obHudT"></pre><div class="obAct"><button class="obBtn" id="bFig">兵士の表示 ON</button><button class="obBtn" id="bEnd">終わる</button></div>';
@@ -523,6 +559,7 @@ function hudText(){ const r=IY.renderer.info.render,P=window.OshiroPerf;
   if(bench&&bench.auto) s+=`\n自動測定中… 6秒ごとに増やします`;
   if(bench&&bench.summary){ const {r45,r30}=bench.summary; s+=`\n―― 結果 ――\n快適45fps: ${r45?`味方${r45.A}・敵${r45.E}（${r45.fig}体）`:'—'}\n遊べる30fps: ${r30?`味方${r30.A}・敵${r30.E}（${r30.fig}体）`:'—'}`; }
   if(OB.lightInfo) s+=`\n軽量化 ${OB.lightInfo.trisCut} 三角形を削減`;
+  if(OB.blockInfo) s+=`\n建物の読み取り ${OB.blockInfo.ms}ms`;
   return s; }
 
 /* ================= 毎フレーム ================= */
@@ -561,7 +598,7 @@ function after(dt){
 }
 
 /* ================= はじめる ================= */
-lighten(); makeSoldiers(); drawRoutes(); buildMarks(); buildLines();
+lighten(); OB.block=buildBlock(); makeSoldiers(); buildMarks(); buildLines();
 document.documentElement.classList.add('obready');
 OB.ready=true;
 document.title='戦国・城ディフェンス（仮）';
