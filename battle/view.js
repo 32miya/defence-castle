@@ -88,12 +88,15 @@ function buildBlock(){
   for(const g of MAP.gatePass||[]){ const [p,q]=g,L=Math.hypot(q[0]-p[0],q[1]-p[1]); for(let k=0;k<=L;k+=.5) clear(p[0]+(q[0]-p[0])*k/L,p[1]+(q[1]-p[1])*k/L,1.8); }
   for(const s2 of MAP.slots) clear(s2.pos[0],s2.pos[1],2.5);
   for(const r of MAP.routes) for(const q of r.pts) clear(q[0],q[1],1.6);
-  OB.blockInfo={ms:Math.round(performance.now()-t0),tris,cells:D.reduce((s,v)=>s+v,0)};
+  /* 細い塀（厚さ3m以下）は「塀」= 攻め手だけよじ登れる。建物のような厚いものは「建物」= だれも通れない */
+  const thin=Math.round(3/c);
+  for(let j=0;j<Hh;j++){ let i=0; while(i<W){ if(!D[j*W+i]){ i++; continue; } let e=i; while(e<W&&D[j*W+e]) e++; const L=e-i; for(let q=i;q<e;q++) D[j*W+q]=L<=thin?3:1; i=e; } }
+  for(let i=0;i<W;i++){ let j=0; while(j<Hh){ if(!D[j*W+i]){ j++; continue; } let e=j; while(e<Hh&&D[e*W+i]) e++; const L=e-j; for(let q=j;q<e;q++){ const k=q*W+i; D[k]=(D[k]===3||L<=thin)?2:1; } j=e; } }
+  OB.blockInfo={ms:Math.round(performance.now()-t0),tris,cells:D.reduce((s,v)=>s+(v?1:0),0)};
   OB.blockData={D,W,H:Hh,c,x0:K.x0,z0:K.z0};
-  const wat=IY.isWater||null;
-  return (x,z)=>{ if(wat&&wat(x,z)) return true; const i=Math.round((x-K.x0)/c),j=Math.round((z-K.z0)/c); if(i<0||j<0||i>=W||j>=Hh) return false;
-    /* 1.5mのマスの中心のまわりで判定（細い塀も逃さない） */
-    for(let dj=-1;dj<=1;dj++) for(let di=-1;di<=1;di++){ const ii=i+di,jj=j+dj; if(ii>=0&&jj>=0&&ii<W&&jj<Hh&&D[jj*W+ii]&&(Math.abs(di)+Math.abs(dj)<2)) return true; } return false; };
+  /* 1.5mのマスの中心のまわりで判定（細い塀も逃さない）。0=通れる 1=建物 2=塀 */
+  return (x,z)=>{ const i=Math.round((x-K.x0)/c),j=Math.round((z-K.z0)/c); if(i<0||j<0||i>=W||j>=Hh) return 0; let r=0;
+    for(let dj=-1;dj<=1;dj++) for(let di=-1;di<=1;di++){ if(Math.abs(di)+Math.abs(dj)>=2) continue; const ii=i+di,jj=j+dj; if(ii<0||jj<0||ii>=W||jj>=Hh) continue; const v=D[jj*W+ii]; if(v===1) return 1; if(v===2) r=2; } return r; };
 }
 function disposeTree(g){ g.traverse(o=>{ if(o.geometry) o.geometry.dispose(); }); }
 function compactInstances(o,inK){ const m=new THREE.Matrix4(),p=new THREE.Vector3(),c=new THREE.Color(); let j=0; const n=o.count;
@@ -147,7 +150,9 @@ function makeSoldiers(){
 }
 const _m=new THREE.Matrix4(),_q=new THREE.Quaternion(),_v=new THREE.Vector3(),_v2=new THREE.Vector3(),_s=new THREE.Vector3(1,1,1),_z=new THREE.Vector3(0,0,1);
 function setFig(mesh,i,x,y,z,h,sc){ const e=mesh.instanceMatrix.array,o=i*16,c=Math.cos(h)*sc,s=Math.sin(h)*sc; e[o]=c; e[o+1]=0; e[o+2]=-s; e[o+3]=0; e[o+4]=0; e[o+5]=sc; e[o+6]=0; e[o+7]=0; e[o+8]=s; e[o+9]=0; e[o+10]=c; e[o+11]=0; e[o+12]=x; e[o+13]=y; e[o+14]=z; e[o+15]=1; }
-let figTotal=0,showFigs=true;
+let figTotal=0,showFigs=true,WY=null;
+/* 水面の高さ（堀・川のある城だけ） */
+function findWaterY(){ if(!IY.isWater) return null; let y=null; IY.scene.traverse(o=>{ if(y===null&&o.isMesh&&o.material===IY.waterMat) y=o.position.y; }); return y; }
 function drawSoldiers(battle,alpha,t){
   for(const k in SOL) SOL[k].n=0; figTotal=0; let rn=0;
   const per=battle.C.menPerFigure;
@@ -166,7 +171,8 @@ function drawSoldiers(battle,alpha,t){
       lat+=Math.sin(j)*.45; fb+=Math.cos(j*1.7)*.45; if(rout){ lat*=1.7; fb*=1.7; }
       if(u.engaged&&!rout) fb+=Math.max(0,Math.sin(t*5+j))*.9;
       const fx=x+ch*lat+sh*fb,fz=z-sh*lat+ch*fb;
-      let y=H(fx,fz); if(u.moving||rout) y+=Math.abs(Math.sin(t*(u.base==='kiba'?9:7)+j))*.28;
+      let y=H(fx,fz); if(WY!==null&&IY.isWater(fx,fz)) y=WY-1.1; /* 堀の中は腰まで水につかる */
+      if(u.moving||rout) y+=Math.abs(Math.sin(t*(u.base==='kiba'?9:7)+j))*.28;
       const fh=hd+(rout?Math.sin(j)*.6:0)+(u.engaged?Math.sin(t*3+j)*.15:0);
       setFig(S.tm,S.n,fx,y,fz,fh,1); setFig(S.nm,S.n,fx,y,fz,fh,1); S.tm.setColorAt(S.n,col); S.n++; figTotal++; }
   }
@@ -355,7 +361,7 @@ function drawPreview(){ clearPrev(); const m=UI.mode,p=UI.pend,u=UI.sel; if(!p) 
   const gold=0xffcf5a,red=0xff5a40,blue=0x8fb7ff;
   if(u&&(m==='hold'||m==='reinforce'||m==='intercept')){
     const tx=p.target?p.target.x:p.x,tz=p.target?p.target.z:p.z;
-    const path=[[u.x,u.z]].concat(SIM.navPath(B.nav,u.x,u.z,tx,tz,H)); ribbon(path,1.1,gold,.92,true);
+    const path=[[u.x,u.z]].concat(B.pathFor(u.x,u.z,tx,tz,'ally')); ribbon(path,1.1,gold,.92,true);
     const sec=Math.round(plen(path)/T[u.type].speed*1.15);
     if(m==='intercept'){ const e=p.target; circle(e.x,e.z,7,red);
       /* 敵がこれから進む道（赤） */
@@ -450,6 +456,8 @@ function onEvents(b){
     else if(e.k==='boss'&&!bench){ sfx('horagai',3,2.4,1); toast(`敵の大将 <b>${e.u.gen||e.u.name}</b> 出陣${MAP.enemy.boss&&MAP.enemy.boss.skill?'（特技：'+MAP.enemy.boss.skill.name+'）':''}`,'warn'); }
     else if(e.k==='line'&&!bench){ for(const d of [0,.35,.7]) SND.play('bell',d,700,.9); toast(`防衛線「${e.name}」を破られた！`,'warn'); setLines(e.i); }
     else if(e.k==='rout'&&!bench){ sfx(e.u.side==='ally'?'rout':'taiko',.3); toast(e.u.side==='ally'?`${e.u.name}が敗走！`:`敵の${T[e.u.type].name}が敗走`,e.u.side==='ally'?'warn':'good'); }
+    else if(e.k==='moat'&&!bench){ toast(`敵の${T[e.u.type].name}が堀を渡りはじめた！（堀の中は遅く弱い）`,'warn'); sfx('bell',2,0,900,.6); }
+    else if(e.k==='climb'&&!bench){ toast(`敵の${T[e.u.type].name}が塀をよじ登っている！`,'warn'); }
     else if(e.k==='rally'&&!bench){ toast(`${e.u.name}が立ち直った`,'info'); }
     else if(e.k==='dead'&&!bench){ if(e.u.side==='ally') toast(`${e.u.name}が壊滅…`,'warn'); }
     else if(e.k==='bossdown'&&!bench){ sfx('taiko'); sfx('taiko',0,.25); sfx('horagai',0,2); toast(`<b>${e.u.gen||e.u.name}の本隊が崩れた！</b>敵の士気が下がる`,'big good'); }
@@ -472,7 +480,7 @@ function armyFor(){ const sv=loadSave(),cap=SIM.capOf(MAP);
 function startBattle(){
   Object.assign(CAM,MAP.camera||{});
   clearUnits(); bench=null; sunsetDone=false; IY.applyTime(1); OB.shadowDirty=3;
-  const AR=armyFor(); B=new SIM.Battle(MAP,{army:AR.army,h:H,block:OB.block}); drawRoutes(B);
+  const AR=armyFor(); B=new SIM.Battle(MAP,{army:AR.army,h:H,block:OB.block,water:IY.isWater}); drawRoutes(B);
   buildCards(B); buildLines(); setLines(0); $('obModal').hidden=true; $('obCards').hidden=false; $('obLines').hidden=false; $('obHud').hidden=!QS.has('hud');
   UI.pauseManual=false; finish(); toast(`<b>${MAP.title}</b>${MAP.goal}！`,'big'); $('obSnd').textContent=SND.on?'🔊':'🔇'; sfx('horagai'); sfx('taiko',0,1.5);
 }
@@ -535,7 +543,7 @@ function showBenchSetup(){
 }
 function startBench(auto){
   clearUnits(); IY.applyTime(1); OB.shadowDirty=3;
-  B=new SIM.Battle(MAP,{army:[],h:H,waves:[],duration:1e9,block:OB.block}); drawRoutes(B); B.checkEnd=function(){}; bench={t:0,auto,phase:0,last:0,res:null};
+  B=new SIM.Battle(MAP,{army:[],h:H,waves:[],duration:1e9,block:OB.block,water:IY.isWater}); drawRoutes(B); B.checkEnd=function(){}; bench={t:0,auto,phase:0,last:0,res:null};
   BEN.auto=auto; if(auto){ BEN.ally=4; BEN.enemy=8; BEN.log=[]; }
   $('obModal').hidden=true; $('obCards').hidden=true; $('obLines').hidden=true; $('obHud').hidden=false; $('obWave').textContent='負荷テスト';
   const H2=$('obHud'); H2.innerHTML='<pre id="obHudT"></pre><div class="obAct"><button class="obBtn" id="bFig">兵士の表示 ON</button><button class="obBtn" id="bEnd">終わる</button></div>';
@@ -607,7 +615,7 @@ function after(dt){
 }
 
 /* ================= はじめる ================= */
-lighten(); OB.block=buildBlock(); makeSoldiers(); buildMarks(); buildLines();
+lighten(); OB.block=buildBlock(); WY=findWaterY(); makeSoldiers(); buildMarks(); buildLines();
 document.documentElement.classList.add('obready');
 OB.ready=true;
 document.title='戦国・城ディフェンス（仮）';

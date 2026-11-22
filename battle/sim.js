@@ -40,7 +40,13 @@ const DEF={
   rallyMorale:35,            /* 敗走から立ち直ったときの士気 */
   enemySpeed:.8,             /* 攻め手は用心して進む（味方より遅い） */
   saihaiStart:2, saihaiMax:5, saihaiRate:1/9, /* 采配: 最初2、9秒で1たまる、最大5 */
-  gateTime:25, gateHP:100
+  gateTime:25, gateHP:100,
+  /* 城方の補正（城攻めには3倍の兵が要ると言われる）: 守り手は受ける損害0.6倍・攻撃1.15倍 */
+  defTake:.6, defAtk:1.15,
+  /* 堀は渡れるが速さ半分。堀の中の兵は攻撃0.6倍・受ける損害1.3倍。塀をよじ登る兵は速さ0.3倍・攻撃0.5倍・受ける損害1.5倍 */
+  waterSpeed:.5, wallSpeed:.3,
+  /* ステージが進むほど敵が増える（1ステージごとに+20%） */
+  stageGrow:.2
 };
 
 function dist(ax,az,bx,bz){ return Math.hypot(bx-ax,bz-az); }
@@ -75,17 +81,22 @@ function navPath(nav,ax,az,bx,bz,h){
    2mのマス目。となりのマスとの高さの差が急すぎる所（石垣・崖）は通れない。坂道は通れる。
    道の網（buildNav）だと遠回りになるため、味方の移動はこちらを使う。 */
 class Grid{
-  constructor(b,h,cell,block){ this.c=cell||2; this.x0=b.x0; this.z0=b.z0; this.W=Math.ceil((b.x1-b.x0)/this.c)+1; this.H=Math.ceil((b.z1-b.z0)/this.c)+1;
+  constructor(b,h,cell,block,water){ this.c=cell||2; this.x0=b.x0; this.z0=b.z0; this.W=Math.ceil((b.x1-b.x0)/this.c)+1; this.H=Math.ceil((b.z1-b.z0)/this.c)+1;
     const n=this.W*this.H; this.h=new Float32Array(n); for(let j=0;j<this.H;j++) for(let i=0;i<this.W;i++) this.h[j*this.W+i]=h(this.x0+i*this.c,this.z0+j*this.c);
-    this.blk=new Uint8Array(n); if(block) for(let j=0;j<this.H;j++) for(let i=0;i<this.W;i++) if(block(this.x0+i*this.c,this.z0+j*this.c)) this.blk[j*this.W+i]=1;
+    /* blk: 0=通れる 1=建物（だれも通れない） 2=塀（攻め手だけよじ登れる）  wat: 1=堀・川（遅くなる） */
+    this.blk=new Uint8Array(n); this.wat=new Uint8Array(n);
+    for(let j=0;j<this.H;j++) for(let i=0;i<this.W;i++){ const x=this.x0+i*this.c,z=this.z0+j*this.c,k=j*this.W+i; if(block){ const v=block(x,z); this.blk[k]=v===true?1:(v|0); } if(water&&water(x,z)) this.wat[k]=1; }
     this.maxSlope=.8; this.g=new Float32Array(n); this.f=new Float32Array(n); this.par=new Int32Array(n); this.stamp=new Uint32Array(n); this.closed=new Uint32Array(n); this.run=0; }
   idx(x,z){ const i=Math.round((x-this.x0)/this.c),j=Math.round((z-this.z0)/this.c); if(i<0||j<0||i>=this.W||j>=this.H) return -1; return j*this.W+i; }
   pos(k){ return [this.x0+(k%this.W)*this.c,this.z0+Math.floor(k/this.W)*this.c]; }
-  ok(a,b,d){ return !this.blk[b]&&Math.abs(this.h[a]-this.h[b])/d<=this.maxSlope; }
-  blockedAt(x,z){ const k=this.idx(x,z); return k>=0&&this.blk[k]===1; }
+  ok(a,b,d,side){ const t=this.blk[b]; if(t===1||(t===2&&side!=='enemy')) return false; if(this.wat[b]||this.wat[a]) return true; return Math.abs(this.h[a]-this.h[b])/d<=this.maxSlope; }
+  cost(k){ return (this.wat[k]?2:1)*(this.blk[k]===2?4:1); }
+  blockedAt(x,z,side){ const k=this.idx(x,z); if(k<0) return false; const t=this.blk[k]; return t===1||(t===2&&side!=='enemy'); }
+  waterAt(x,z){ const k=this.idx(x,z); return k>=0&&this.wat[k]===1; }
+  wallAt(x,z){ const k=this.idx(x,z); return k>=0&&this.blk[k]===2; }
   /* マス目の上をまっすぐ行けるか（経路をなめらかにするため） */
-  line(ax,az,bx,bz){ const L=Math.hypot(bx-ax,bz-az),n=Math.ceil(L/(this.c*.5)); let pk=this.idx(ax,az),ph=null; for(let i=1;i<=n;i++){ const x=ax+(bx-ax)*i/n,z=az+(bz-az)*i/n,k=this.idx(x,z); if(k<0) return false; if(k!==pk){ const d=Math.hypot(...this.pos(k).map((v,q)=>v-this.pos(pk)[q]))||this.c; if(!this.ok(pk,k,d)) return false; pk=k; } } return true; }
-  find(ax,az,bx,bz){
+  line(ax,az,bx,bz,side){ const L=Math.hypot(bx-ax,bz-az),n=Math.ceil(L/(this.c*.5)); let pk=this.idx(ax,az),ph=null; for(let i=1;i<=n;i++){ const x=ax+(bx-ax)*i/n,z=az+(bz-az)*i/n,k=this.idx(x,z); if(k<0) return false; if(k!==pk){ const d=Math.hypot(...this.pos(k).map((v,q)=>v-this.pos(pk)[q]))||this.c; if(!this.ok(pk,k,d,side)||this.cost(k)!==this.cost(pk)) return false; pk=k; } } return true; }
+  find(ax,az,bx,bz,side){
     const s=this.idx(ax,az),t=this.idx(bx,bz); if(s<0||t<0) return null; if(s===t) return [[bx,bz]];
     const run=++this.run,W=this.W,c=this.c,D2=c*Math.SQRT2; const heap=[];
     const push=k=>{ heap.push(k); let i=heap.length-1; while(i>0){ const p=(i-1)>>1; if(this.f[heap[p]]<=this.f[k]) break; heap[i]=heap[p]; i=p; } heap[i]=k; };
@@ -93,15 +104,15 @@ class Grid{
     const [tx,tz]=this.pos(t),hh=k=>{ const [x,z]=this.pos(k),dx=Math.abs(x-tx),dz=Math.abs(z-tz); return Math.max(dx,dz)+(Math.SQRT2-1)*Math.min(dx,dz); };
     this.stamp[s]=run; this.g[s]=0; this.f[s]=hh(s); this.par[s]=-1; push(s); let best=s,bh=this.f[s],it=0;
     const NB=[[1,0,c],[-1,0,c],[0,1,c],[0,-1,c],[1,1,D2],[1,-1,D2],[-1,1,D2],[-1,-1,D2]];
-    while(heap.length&&it++<60000){ const k=pop(); if(this.closed[k]===run) continue; this.closed[k]=run; if(k===t){ best=t; break; }
+    while(heap.length&&it++<300000){ const k=pop(); if(this.closed[k]===run) continue; this.closed[k]=run; if(k===t){ best=t; break; }
       const hk=this.f[k]-this.g[k]; if(hk<bh){ bh=hk; best=k; }
       const i=k%W,j=(k-i)/W;
-      for(const [di,dj,d] of NB){ const ni=i+di,nj=j+dj; if(ni<0||nj<0||ni>=W||nj>=this.H) continue; const nk=nj*W+ni; if(this.closed[nk]===run||!this.ok(k,nk,d)) continue;
-        if(di&&dj&&(!this.ok(k,j*W+ni,c)||!this.ok(k,nj*W+i,c))) continue;
-        const ng=this.g[k]+d+Math.abs(this.h[nk]-this.h[k])*.6; if(this.stamp[nk]!==run||ng<this.g[nk]){ this.stamp[nk]=run; this.g[nk]=ng; this.f[nk]=ng+hh(nk); this.par[nk]=k; push(nk); } } }
+      for(const [di,dj,d] of NB){ const ni=i+di,nj=j+dj; if(ni<0||nj<0||ni>=W||nj>=this.H) continue; const nk=nj*W+ni; if(this.closed[nk]===run||!this.ok(k,nk,d,side)) continue;
+        if(di&&dj&&(!this.ok(k,j*W+ni,c,side)||!this.ok(k,nj*W+i,c,side))) continue;
+        const ng=this.g[k]+d*this.cost(nk)+Math.abs(this.h[nk]-this.h[k])*.6; if(this.stamp[nk]!==run||ng<this.g[nk]){ this.stamp[nk]=run; this.g[nk]=ng; this.f[nk]=ng+hh(nk); this.par[nk]=k; push(nk); } } }
     const raw=[]; for(let k=best;k>=0;k=this.par[k]) raw.unshift(this.pos(k)); if(best===t) raw.push([bx,bz]); raw[0]=[ax,az];
     /* なめらかに（見通せる点は飛ばす） */
-    const out=[]; let a=0; while(a<raw.length-1){ let b=raw.length-1; while(b>a+1&&!this.line(raw[a][0],raw[a][1],raw[b][0],raw[b][1])) b--; out.push(raw[b]); a=b; }
+    const out=[]; let a=0; while(a<raw.length-1){ let b=raw.length-1; while(b>a+1&&!this.line(raw[a][0],raw[a][1],raw[b][0],raw[b][1],side)) b--; out.push(raw[b]); a=b; }
     return out.length?out:[[bx,bz]]; }
 }
 
@@ -117,13 +128,13 @@ class Battle{
     this.h=opt.h||(()=>0);
     this.time=0; this.acc=0; this.state='run'; this.events=[]; this.units=[]; this.nextId=1;
     this.duration=opt.duration||map.duration||480;
-    this.enemyScale=opt.enemyScale||(map.enemy&&map.enemy.scale)||1;
+    this.enemyScale=(opt.enemyScale||(map.enemy&&map.enemy.scale)||1)*(1+(this.C.stageGrow||0)*((map.stage||1)-1));
     this.routes={}; for(const r of map.routes) this.routes[r.id]=prepRoute(Object.assign({},r));
     this.slots=map.slots.map(s=>Object.assign({},s));
     this.nav=buildNav(map);
-    this.grid=null; if(opt.grid!==false&&map.keep) this.grid=new Grid(map.keep,this.h,opt.block?1.5:2,opt.block);
+    this.grid=null; if(opt.grid!==false&&map.keep) this.grid=new Grid(map.keep,this.h,opt.block?1.5:2,opt.block,opt.water);
     /* 敵の進軍ルート: 設定データの点のあいだを、建物や崖をよけて通れる道でつなぐ */
-    if(this.grid) for(const id in this.routes){ const r=this.routes[id],P=[r.pts[0]]; for(let i=1;i<r.pts.length;i++){ const a=P[P.length-1],b=r.pts[i]; const seg=this.grid.find(a[0],a[1],b[0],b[1]); if(seg&&seg.length){ for(const q of seg) if(dist(q[0],q[1],P[P.length-1][0],P[P.length-1][1])>.5) P.push(q); } else P.push(b); } r.key=r.pts; r.pts=P; prepRoute(r); } /* 城内のマス目（合戦の始めに一度だけ作る） */
+    if(this.grid) for(const id in this.routes){ const r=this.routes[id],P=[r.pts[0]]; for(let i=1;i<r.pts.length;i++){ const a=P[P.length-1],b=r.pts[i]; const seg=this.grid.find(a[0],a[1],b[0],b[1],'enemy'); if(seg&&seg.length){ for(const q of seg) if(dist(q[0],q[1],P[P.length-1][0],P[P.length-1][1])>.5) P.push(q); } else P.push(b); } r.key=r.pts; r.pts=P; prepRoute(r); this.timeRoute(r); } /* 城内のマス目（合戦の始めに一度だけ作る） */
     this.lines=map.lines; this.breached=0;
     /* 防衛線がルートのどこにあたるか */
     this.lineS={}; for(const id in this.routes){ const r=this.routes[id]; this.lineS[id]=this.lines.map(L=>{ let s=null; for(const p of L.pts){ const q=projRoute(r,p[0],p[1]); if(q.d<15) s=s===null?q.s:Math.min(s,q.s); } return s; }); }
@@ -178,10 +189,14 @@ class Battle{
   lineOf(u){ /* 今いる場所の防衛線（いちばん近い配置場所の線） */ let b=null,bd=1e9; for(const s of this.slots){ const d=dist(s.pos[0],s.pos[1],u.x,u.z); if(d<bd){ bd=d; b=s; } } return b?b.line:1; }
   retreatSlot(u){ const L=this.lineOf(u),maxL=Math.max(...this.slots.map(s=>s.line)); const want=Math.min(maxL,L+1);
     let b=null,bd=1e9; for(const s of this.slots) if(s.line===want){ const d=dist(s.pos[0],s.pos[1],u.x,u.z)+(s.kind==='gate'&&TYPES[u.type].melee?-10:0); if(d<bd){ bd=d; b=s; } } return b||this.slots[this.slots.length-1]; }
-  goTo(u,x,z){ u.path=this.pathFor(u.x,u.z,x,z); u.goal=[x,z]; u.repath=this.time+.8; }
+  goTo(u,x,z){ u.path=this.pathFor(u.x,u.z,x,z,u.side); u.goal=[x,z]; u.repath=this.time+.8; }
+  /* ルートの点ごとに「本丸までにかかる手間」（堀は2倍、塀は3倍以上）を積む */
+  timeRoute(r){ const g=this.grid,T=[0]; for(let i=1;i<r.pts.length;i++){ const [ax,az]=r.pts[i-1],[bx,bz]=r.pts[i],L=dist(ax,az,bx,bz),n=Math.max(1,Math.ceil(L/2)); let t=0; for(let k=0;k<n;k++){ const x=ax+(bx-ax)*(k+.5)/n,z=az+(bz-az)*(k+.5)/n; t+=L/n*(g.waterAt(x,z)?1/this.C.waterSpeed:1)*(g.wallAt(x,z)?1/this.C.wallSpeed:1); } T.push(T[i-1]+t); } r.cumT=T; r.lenT=T[T.length-1]; }
+  /* 敵が本丸に着くまでの残りの手間 */
+  remain(e){ const r=e.route; if(!r.cumT) return r.len-e.s; let i=1; while(i<r.cum.length-1&&r.cum[i]<e.s) i++; const f=(e.s-r.cum[i-1])/Math.max(1e-6,r.cum[i]-r.cum[i-1]); return r.lenT-(r.cumT[i-1]+(r.cumT[i]-r.cumT[i-1])*Math.max(0,Math.min(1,f))); }
   /* 味方の経路: 城内のマス目で最短。マス目の外は道の網 */
-  pathFor(ax,az,bx,bz){ if(this.grid===null) this.grid=this.map.keep?new Grid(this.map.keep,this.h,2):false;
-    if(this.grid){ const p=this.grid.find(ax,az,bx,bz); if(p&&p.length) return p; } return navPath(this.nav,ax,az,bx,bz,this.h); }
+  pathFor(ax,az,bx,bz,side){ if(this.grid===null) this.grid=this.map.keep?new Grid(this.map.keep,this.h,2):false;
+    if(this.grid){ const p=this.grid.find(ax,az,bx,bz,side||'ally'); if(p&&p.length) return p; } return navPath(this.nav,ax,az,bx,bz,this.h); }
   stale(u,x,z,r){ return !u.path||!u.goal||(dist(u.goal[0],u.goal[1],x,z)>r&&this.time>=(u.repath||0)); }
 
   /* ---------- 進める ---------- */
@@ -227,9 +242,10 @@ class Battle{
     if(!T.melee){ /* 弓: 動かずに射る（射程の外の敵は、任せるときだけ寄る） */
       const inR=nearestE(u.x,u.z,range,true); u.target=inR;
       const ad=dist(u.x,u.z,anchor[0],anchor[1]);
+      u.moveFire=false;
       if(!inR&&o.kind==='auto'&&t){ if(this.stale(u,t.x,t.z,10)) this.goTo(u,t.x,t.z); }
-      else if(inR){ u.path=null; }
-      else if(ad>2.5){ if(!u.path||!u.goal||dist(u.goal[0],u.goal[1],anchor[0],anchor[1])>2) this.goTo(u,anchor[0],anchor[1]); }
+      else if(inR&&(o.kind==='auto'||ad<=6)){ u.path=null; }
+      else if(ad>2.5){ u.moveFire=!!inR; /* 命じられた場所へ向かう途中も、射程内の敵に矢を射かけながら進む */ if(!u.path||!u.goal||dist(u.goal[0],u.goal[1],anchor[0],anchor[1])>2) this.goTo(u,anchor[0],anchor[1]); }
       return; }
     if(t){ u.target=t; const d=dist(u.x,u.z,t.x,t.z); if(d>this.C.contact*.9){ if(this.stale(u,t.x,t.z,5)) this.goTo(u,t.x,t.z); } else u.path=null; }
     else { u.target=null; const ad=dist(u.x,u.z,anchor[0],anchor[1]); if(ad>2.5){ if(!u.path||!u.goal||dist(u.goal[0],u.goal[1],anchor[0],anchor[1])>2) this.goTo(u,anchor[0],anchor[1]); } else u.path=null; }
@@ -237,7 +253,14 @@ class Battle{
   /* 任せる: いちばん深く来ている敵の「一つ先の線」で待ち受け、有利な相手を選んで戦う */
   autoPick(u,E){
     const T=TYPES[u.type];
-    let deep=null,dr=-1; for(const e of E) if(e.route&&e.state!=='rout'){ const r=e.s/e.route.len; if(r>dr){ dr=r; deep=e; } }
+    /* 危ない敵＝「敵が本丸に着くまでの時間」から「自分が駆けつける時間」を引いた余裕がいちばん少ない敵。
+       ほかの味方（任せる）がもう向かっている敵は後回しにして、守りを手分けする */
+    const sp=T.speed,es=this.C.enemySpeed;
+    let deep=null,dr=-1e9; for(const e of E) if(e.route&&e.state!=='rout'){
+      const slack=this.remain(e)/(TYPES[e.type].speed*es)-dist(u.x,u.z,e.x,e.z)*1.25/sp;
+      let crowd=0; for(const a of this.units) if(a!==u&&a.side==='ally'&&a.state!=='dead'&&a.state!=='rout'&&a.autoFor&&a.autoFor.route===e.route) crowd++;
+      const r=-(slack+crowd*35); if(r>dr){ dr=r; deep=e; } }
+    u.autoFor=deep;
     if(!deep){ u.autoAnchor=null; u.autoTarget=null; return; }
     const LS=this.lineS[deep.route.id]; let li=LS.length-1; for(let i=0;i<LS.length;i++) if(LS[i]!==null&&LS[i]>deep.s-2){ li=i; break; }
     const want=li+1; let b=null,bd=1e9;
@@ -280,6 +303,8 @@ class Battle{
       u.engaged=true; if(d<=C.contact+.5) t.engaged=true;
       let m=1; if(BEATS[u.base]===t.base) m=C.adv; else if(BEATS[t.base]===u.base) m=C.dis;
       let f=T.atk*m*(0.55+0.45*u.morale/100);
+      if(u.side==='ally') f*=C.defAtk;
+      if(this.grid){ if(this.grid.waterAt(u.x,u.z)) f*=.6; if(this.grid.wallAt(u.x,u.z)) f*=.5; }
       if(u.side==='ally'&&this.skill&&this.skill.kind==='kyuba'&&(u.base==='yumi'||u.base==='kiba')) f*=1+(this.skill.v||.15);
       if(this.buff(u,'yari')) f*=1.3; if(this.buff(u,'yumi')||this.buff(u,'teppo')) f*=1.8; if(this.buff(u,'kiba')) f*=1.5; if(u.kobuUntil>this.time) f*=1.2;
       if(this.buff(u,'kiba')&&d<=C.contact+.5&&!u.charged.has(t.id)){ u.charged.add(t.id); t.morale-=18; this.events.push({k:'chargeHit',u,t}); }
@@ -292,6 +317,8 @@ class Battle{
       let dmg=u.men*C.K*f*dt/TYPES[t.type].def;
       if(t.side==='ally'&&this.skill&&this.skill.kind==='kengo'&&this.slotAt(t)) dmg*=1-(this.skill.v||.2);
       if(this.buff(t,'yari')) dmg*=.6;
+      if(t.side==='ally') dmg*=C.defTake;
+      if(this.grid){ if(this.grid.waterAt(t.x,t.z)) dmg*=1.3; if(this.grid.wallAt(t.x,t.z)) dmg*=1.5; }
       t.dmg=(t.dmg||0)+dmg; t.hitBy.push(u);
       if(!T.melee){ u.cool-=dt; if(u.cool<=0){ u.cool=1.1+Math.random()*.4; this.events.push({k:'volley',a:u,b:t}); } }
     }
@@ -324,18 +351,20 @@ class Battle{
       u.moving=false; if(u.state==='dead'||u.state==='gone') continue;
       if(u.side==='enemy') u.atGate=null;
       if(this.buff(u,'yari')){ if(u.target) this.face(u,u.target); continue; }
-      if(u.engaged&&u.state!=='rout'&&!(u.target&&dist(u.x,u.z,u.target.x,u.target.z)>this.C.contact+.5)) { this.face(u,u.target); continue; }
+      if(u.engaged&&!u.moveFire&&u.state!=='rout'&&!(u.target&&dist(u.x,u.z,u.target.x,u.target.z)>this.C.contact+.5)) { this.face(u,u.target); continue; }
       if(!u.path||!u.path.length){ if(u.target) this.face(u,u.target); continue; }
       const T=TYPES[u.type]; let sp=T.speed*(u.speedMul||1)*(u.state==='rout'?1.25:1)*(u.side==='enemy'?this.C.enemySpeed:1);
       if(u.type==='kiba'&&this.inNarrow(u)) sp*=.6;
       if(this.buff(u,'kiba')) sp*=1.4; if(u.slowUntil>this.time) sp*=.45;
+      if(this.grid){ const w=this.grid.waterAt(u.x,u.z),c=this.grid.wallAt(u.x,u.z); if(w) sp*=this.C.waterSpeed; if(c) sp*=this.C.wallSpeed;
+        if(u.side==='enemy'&&w&&!u.wet){ u.wet=true; this.events.push({k:'moat',u}); } if(u.side==='enemy'&&c&&!u.climb){ u.climb=true; this.events.push({k:'climb',u}); } }
       let left=sp*dt;
       while(left>0&&u.path.length){ const [tx,tz]=u.path[0],d=dist(u.x,u.z,tx,tz); if(d<.3){ u.path.shift(); continue; }
         const st=Math.min(left,d,1.2),nx=u.x+(tx-u.x)/d*st,nz=u.z+(tz-u.z)/d*st,nh=this.h(nx,nz);
         /* 急な斜面では遅くなる */
         const slope=Math.abs(nh-u.y)/st; const f=clamp(1-Math.max(0,slope-.35)*1.4,.3,1);
         const adv=st*f; const ax=u.x+(tx-u.x)/d*adv,az=u.z+(tz-u.z)/d*adv;
-        if(this.grid&&this.grid.blockedAt(ax,az)&&!this.grid.blockedAt(u.x,u.z)) break;
+        if(this.grid&&this.grid.blockedAt(ax,az,u.side)&&!this.grid.blockedAt(u.x,u.z,u.side)) break;
         if(u.side==='enemy'&&u.state!=='rout'){ const g=this.gateBlock(u,ax,az); if(g){ u.atGate=g; this.face(u,{x:g.pos[0],z:g.pos[1]}); break; } }
         u.heading=Math.atan2(tx-u.x,tz-u.z); u.x=ax; u.z=az; u.y=this.h(ax,az); left-=st; u.moving=true; }
     }
@@ -369,7 +398,7 @@ class Battle{
   gateBlock(u,nx,nz){ for(const g of this.gates){ if(this.gateOpenAt(g)) continue; const d0=dist(u.x,u.z,g.pos[0],g.pos[1]),d1=dist(nx,nz,g.pos[0],g.pos[1]); if(d1<g.r+3&&d1<d0) return g; } return null; }
   face(u,t){ if(t) u.heading=Math.atan2(t.x-u.x,t.z-u.z); }
   separate(L){ for(let i=0;i<L.length;i++) for(let j=i+1;j<L.length;j++){ const a=L[i],b=L[j]; const dx=b.x-a.x,dz=b.z-a.z,d=Math.hypot(dx,dz),m=4.5; if(d<m&&d>1e-4){ const p=(m-d)/2*.5,ux=dx/d,uz=dz/d; this.nudge(a,-ux*p,-uz*p); this.nudge(b,ux*p,uz*p); } else if(d<=1e-4){ b.x+=.5; } } }
-  nudge(u,dx,dz){ const x=u.x+dx,z=u.z+dz; if(this.grid&&this.grid.blockedAt(x,z)&&!this.grid.blockedAt(u.x,u.z)) return; u.x=x; u.z=z; }
+  nudge(u,dx,dz){ const x=u.x+dx,z=u.z+dz; if(this.grid&&this.grid.blockedAt(x,z,u.side)&&!this.grid.blockedAt(u.x,u.z,u.side)) return; u.x=x; u.z=z; }
   checkEnd(){
     /* どこまで押されたか */
     let br=0; for(const e of this.live('enemy')){ if(!e.route) continue; const L=this.lineS[e.route.id]; for(let i=0;i<L.length;i++) if(L[i]!==null&&e.s>L[i]+3) br=Math.max(br,i+1); }
