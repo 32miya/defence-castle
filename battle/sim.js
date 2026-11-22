@@ -328,9 +328,12 @@ class Battle{
       let m=1; if(BEATS[u.base]===t.base) m=C.adv; else if(BEATS[t.base]===u.base) m=C.dis;
       let f=T.atk*m*(0.55+0.45*u.morale/100);
       if(u.side==='ally') f*=C.defAtk;
-      if(this.grid){ if(this.grid.waterAt(u.x,u.z)) f*=.6; if(this.grid.wallAt(u.x,u.z)) f*=.5; }
+      const sui=this.bossSkill&&this.bossSkill.kind==='suigun';
+      if(this.grid){ if(this.grid.waterAt(u.x,u.z)&&!(sui&&u.side==='enemy')) f*=.6; if(this.grid.wallAt(u.x,u.z)) f*=.5; }
       if(u.side==='ally'&&this.skill&&this.skill.kind==='akazonae'&&u.base==='kiba') f*=1+(this.skill.v||.2);
       if(u.side==='ally'&&this.skill&&this.skill.kind==='kyuba'&&(u.base==='yumi'||u.base==='kiba')) f*=1+(this.skill.v||.15);
+      if(u.side==='ally'&&this.skill&&this.skill.kind==='yari7'&&u.base==='yari') f*=1+(this.skill.v||.2);
+      if(u.side==='ally'){ const sl=this.slotAt(u); if(sl&&sl.ambush) f*=sl.ambush; }   /* 伏兵の場所（松山城の隠門など） */
       if(this.buff(u,'yari')) f*=1.3; if(this.buff(u,'yumi')||this.buff(u,'teppo')) f*=1.8; if(this.buff(u,'kiba')) f*=1.5; if(u.kobuUntil>this.time) f*=1.2;
       if(this.buff(u,'kiba')&&d<=C.contact+.5&&!u.charged.has(t.id)){ u.charged.add(t.id); t.morale-=18; this.events.push({k:'chargeHit',u,t}); }
       if(!T.melee&&d<C.contact) f*=.5;                                         /* 弓が斬り合いに巻き込まれた */
@@ -343,7 +346,7 @@ class Battle{
       if(t.side==='ally'&&this.skill&&this.skill.kind==='kengo'&&this.slotAt(t)) dmg*=1-(this.skill.v||.2);
       if(this.buff(t,'yari')) dmg*=.6;
       if(t.side==='ally') dmg*=C.defTake;
-      if(this.grid){ if(this.grid.waterAt(t.x,t.z)) dmg*=1.3; if(this.grid.wallAt(t.x,t.z)) dmg*=1.5; }
+      if(this.grid){ if(this.grid.waterAt(t.x,t.z)&&!(sui&&t.side==='enemy')) dmg*=1.3; if(this.grid.wallAt(t.x,t.z)) dmg*=1.5; }
       t.dmg=(t.dmg||0)+dmg; t.hitBy.push(u);
       if(!T.melee){ u.cool-=dt; if(u.cool<=0){ u.cool=1.1+Math.random()*.4; this.events.push({k:'volley',a:u,b:t}); } }
     }
@@ -383,7 +386,7 @@ class Battle{
       const T=TYPES[u.type]; let sp=T.speed*(u.speedMul||1)*(u.state==='rout'?1.25:1)*(u.side==='enemy'?this.C.enemySpeed:1);
       if(u.type==='kiba'&&this.inNarrow(u)) sp*=.6;
       if(this.buff(u,'kiba')) sp*=1.4; if(u.slowUntil>this.time) sp*=.45;
-      if(this.grid){ const w=this.grid.waterAt(u.x,u.z),c=this.grid.wallAt(u.x,u.z); if(w) sp*=this.C.waterSpeed; if(c) sp*=this.C.wallSpeed;
+      if(this.grid){ const w=this.grid.waterAt(u.x,u.z),c=this.grid.wallAt(u.x,u.z); if(w&&!(u.side==='enemy'&&this.bossSkill&&this.bossSkill.kind==='suigun')) sp*=this.C.waterSpeed; if(c) sp*=this.C.wallSpeed;
         if(u.side==='enemy'&&w&&!u.wet){ u.wet=true; this.events.push({k:'moat',u}); } if(u.side==='enemy'&&c&&!u.climb){ u.climb=true; this.events.push({k:'climb',u}); } }
       let left=sp*dt;
       while(left>0&&u.path.length){ const [tx,tz]=u.path[0],d=dist(u.x,u.z,tx,tz); if(d<.3){ u.path.shift(); continue; }
@@ -434,8 +437,8 @@ class Battle{
     /* どこまで押されたか */
     let br=0; for(const e of this.live('enemy')){ if(!e.route) continue; const L=this.lineS[e.route.id]; for(let i=0;i<L.length;i++) if(L[i]!==null&&e.s>L[i]+3) br=Math.max(br,i+1); }
     if(br>this.breached){ this.breached=br; this.events.push({k:'line',i:br,name:this.lines[br-1].name}); }
-    const H=this.map.honmaru;
-    for(const e of this.live('enemy')) if(e.state!=='rout'&&e.x>H.x0&&e.x<H.x1&&e.z>H.z0&&e.z<H.z1){ this.end('lose','本丸に敵が入った'); return; }
+    const HS=[].concat(this.map.honmaru);   /* 本丸は1つの四角か、四角の並び */
+    for(const e of this.live('enemy')) if(e.state!=='rout'&&HS.some(H=>e.x>H.x0&&e.x<H.x1&&e.z>H.z0&&e.z<H.z1)){ this.end('lose','本丸に敵が入った'); return; }
     if(this.time>=this.duration){ this.end('win',this.map.winText||'守り抜いた'); return; }
     const allSpawned=this.waves.every(w=>w.spawned)&&!this.spawnQ.length;
     if(allSpawned&&!this.live('enemy').length){ this.end('win','敵は兵を引いた'); return; }

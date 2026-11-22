@@ -33,7 +33,7 @@ function run(mode,seed){ let s=seed||1; Math.random=()=>{ s=(s*16807)%2147483647
       const E=b.live('enemy').filter(e=>e.state!=='rout').sort((x,y)=>(y.s/y.route.len)-(x.s/x.route.len)); if(E[0]&&b.saihai>=4) b.useSaku('rakuseki',{x:E[0].x,z:E[0].z}); }
     for(const e of b.events.splice(0)) if(['wave','rout','dead','line','end','bossdown','gone'].includes(e.k)) log.push(b.time.toFixed(0)+'s '+e.k+' '+(e.u?(e.u.side+':'+e.u.name+'('+e.u.men+')'):(e.name||e.label||e.why||'')));
   }
-  if(process.env.DBG){ for(const e of b.live('enemy')) if(e.x>MAP.honmaru.x0&&e.x<MAP.honmaru.x1&&e.z>MAP.honmaru.z0&&e.z<MAP.honmaru.z1) console.log('IN',e.route.id,e.type,e.men,e.x|0,e.z|0); for(const u of b.live('ally')) console.log('A',u.type,u.men,u.x|0,u.z|0,u.order.kind,u.order.slot&&u.order.slot.id, u.state); }
+  if(process.env.DBG){ for(const e of b.live('enemy')) if([].concat(MAP.honmaru).some(H=>e.x>H.x0&&e.x<H.x1&&e.z>H.z0&&e.z<H.z1)) console.log('IN',e.route.id,e.type,e.men,e.x|0,e.z|0); for(const u of b.live('ally')) console.log('A',u.type,u.men,u.x|0,u.z|0,u.order.kind,u.order.slot&&u.order.slot.id, u.state); }
   const r=b.result(); return {mode,state:r.state,why:r.why,t:r.time.toFixed(0),loss:(r.allyLost/r.allyMen0*100).toFixed(0)+'%',army:r.army.map(a=>a.name+':'+a.men+'/'+a.men0).join(' '),enemyLost:r.enemyLost+'/'+r.enemyMen,breached:r.breached,log};
 }
 const v=process.argv[2]==='-v';

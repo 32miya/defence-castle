@@ -92,7 +92,7 @@ const MAP={
   },
   keep:{x0:-305,x1:378,z0:-414,z1:386},
   camera:{x:30,z:20,yaw:-.45,dist:300,pitch:.9},
-  next:{id:'matsuyama',castle:'松山城',note:'準備中'}
+  next:{id:'matsuyama',castle:'松山城',url:'/32miya-matsuyama-castle/?battle',units:8}
 };
 if(typeof module!=='undefined'&&module.exports) module.exports=MAP; else (root.OshiroBattleMaps=root.OshiroBattleMaps||{})[MAP.id]=MAP;
 })(typeof window!=='undefined'?window:globalThis);

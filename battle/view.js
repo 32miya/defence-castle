@@ -98,6 +98,32 @@ function buildBlock(){
   return (x,z)=>{ const i=Math.round((x-K.x0)/c),j=Math.round((z-K.z0)/c); if(i<0||j<0||i>=W||j>=Hh) return 0; let r=0;
     for(let dj=-1;dj<=1;dj++) for(let di=-1;di<=1;di++){ if(Math.abs(di)+Math.abs(dj)>=2) continue; const ii=i+di,jj=j+dj; if(ii<0||jj<0||ii>=W||jj>=Hh) continue; const v=D[jj*W+ii]; if(v===1) return 1; if(v===2) r=2; } return r; };
 }
+/* 木の葉の玉を粗くする（合戦では遠目で見るので、三角形を1/4に） */
+function coarseTrees(){ const cache=new Map(); IY.scene.traverse(o=>{ if(!o.isInstancedMesh) return; const g=o.geometry,P=g.parameters;
+  if(g.type!=='IcosahedronGeometry'||!P||!(P.detail>0)) return; let ng=cache.get(P.radius); if(!ng){ ng=new THREE.IcosahedronGeometry(P.radius,0); cache.set(P.radius,ng); } o.geometry=ng; g.dispose(); }); }
+/* 動かない建物・塀・石垣を、材質ごとに1つの形にまとめる（描く回数を減らして、スマホでも軽く） */
+function mergeStatic(){ const t0=performance.now(); IY.scene.updateMatrixWorld(true);
+  const users=new Map(),G=new Map(),skipM=new Set([IY.M.terrain,IY.waterMat]);
+  IY.scene.traverse(o=>{ if(o.isMesh&&o.geometry) users.set(o.geometry,(users.get(o.geometry)||0)+1); });
+  IY.scene.traverse(o=>{
+    if(!o.isMesh||o.isInstancedMesh||o.isSkinnedMesh||!o.geometry||Array.isArray(o.material)||skipM.has(o.material)||o.material.transparent) return;
+    for(let q=o;q;q=q.parent) if(!q.visible) return;
+    const g=o.geometry,A=g.attributes; if(!A.position||(g.morphAttributes&&Object.keys(g.morphAttributes).length)) return;
+    const names=Object.keys(A).sort(); if(names.some(n=>A[n].isInterleavedBufferAttribute)) return;
+    const key=o.material.uuid+'|'+o.castShadow+o.receiveShadow+'|'+o.renderOrder+'|'+names.map(n=>n+A[n].itemSize).join(',');
+    (G.get(key)||G.set(key,[]).get(key)).push(o); });
+  let before=0,after=0; const nm=new THREE.Matrix3(),v=new THREE.Vector3(),freed=new Map();
+  for(const list of G.values()){ before+=list.length; if(list.length<2){ after+=list.length; continue; }
+    const geos=list.map(o=>o.geometry.index?o.geometry.toNonIndexed():o.geometry),n=geos.reduce((t,g)=>t+g.attributes.position.count,0),out=new THREE.BufferGeometry();
+    for(const name of Object.keys(geos[0].attributes)){ const s0=geos[0].attributes[name].itemSize,dst=new Float32Array(n*s0); let k=0;
+      geos.forEach((g,i)=>{ const a=g.attributes[name],o=list[i],m=o.matrixWorld; if(name==='position'||name==='normal'){ if(name==='normal') nm.getNormalMatrix(m);
+          for(let j=0;j<a.count;j++){ v.fromBufferAttribute(a,j); if(name==='position') v.applyMatrix4(m); else v.applyMatrix3(nm).normalize(); dst[k++]=v.x; dst[k++]=v.y; dst[k++]=v.z; } }
+        else for(let j=0;j<a.count;j++) for(let c=0;c<s0;c++) dst[k++]=a.array[j*s0+c]; });
+      out.setAttribute(name,new THREE.BufferAttribute(dst,s0,!!geos[0].attributes[name].normalized)); }
+    const M=new THREE.Mesh(out,list[0].material); M.castShadow=list[0].castShadow; M.receiveShadow=list[0].receiveShadow; M.renderOrder=list[0].renderOrder; M.matrixAutoUpdate=false; IY.scene.add(M); after++;
+    list.forEach((o,i)=>{ if(o.parent) o.parent.remove(o); if(geos[i]!==o.geometry) geos[i].dispose(); freed.set(o.geometry,(freed.get(o.geometry)||0)+1); }); }
+  for(const [g,c] of freed) if(c>=users.get(g)) g.dispose();
+  OB.mergeInfo={ms:Math.round(performance.now()-t0),before,after}; }
 function disposeTree(g){ g.traverse(o=>{ if(o.geometry) o.geometry.dispose(); }); }
 function compactInstances(o,inK){ const m=new THREE.Matrix4(),p=new THREE.Vector3(),c=new THREE.Color(); let j=0; const n=o.count;
   for(let i=0;i<n;i++){ o.getMatrixAt(i,m); p.setFromMatrixPosition(m).applyMatrix4(o.matrixWorld); if(inK(p.x,p.z)){ if(i!==j){ o.setMatrixAt(j,m); if(o.instanceColor){ o.getColorAt(i,c); o.setColorAt(j,c); } } j++; } }
@@ -637,7 +663,7 @@ function after(dt){
 }
 
 /* ================= はじめる ================= */
-lighten(); OB.block=buildBlock(); WY=findWaterY(); makeSoldiers(); buildMarks(); buildLines();
+lighten(); OB.block=buildBlock(); WY=findWaterY(); coarseTrees(); mergeStatic(); makeSoldiers(); buildMarks(); buildLines();
 document.documentElement.classList.add('obready');
 OB.ready=true;
 document.title='戦国・城ディフェンス（仮）';
