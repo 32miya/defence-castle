@@ -492,28 +492,41 @@ function startBattle(){
   buildCards(B); buildLines(); setLines(0); $('obModal').hidden=true; $('obCards').hidden=false; $('obLines').hidden=false; $('obHud').hidden=!QS.has('hud');
   UI.pauseManual=false; finish(); toast(`<b>${MAP.title}</b>${MAP.goal}！`,'big'); $('obSnd').textContent=SND.on?'🔊':'🔇'; sfx('horagai'); sfx('taiko',0,1.5);
 }
+/* ===== 出陣前の画面 ===== */
+const MON='<svg viewBox="0 0 40 40" class="obMon"><circle cx="20" cy="20" r="18.5" class="ring"/><g class="pet">'+[0,72,144,216,288].map(a=>`<ellipse cx="20" cy="11" rx="5.2" ry="7.4" transform="rotate(${a} 20 20)"/>`).join('')+'</g><circle cx="20" cy="20" r="3.6" class="core"/></svg>';
+const KABUTO='<svg viewBox="0 0 48 40" class="obKabuto"><path d="M6 6c6 2 10 7 12 12h12c2-5 6-10 12-12-1 7-5 12-10 14l1 4H15l1-4C11 18 7 13 6 6z" fill="#d6a933"/><path d="M12 22h24c0 8-5 14-12 14s-12-6-12-14z" fill="#2b2a2a" stroke="#d6a933" stroke-width="1.5"/><path d="M8 26h8l-2 8H6zM32 26h8l2 8h-8z" fill="#3a3a3a" stroke="#d6a933" stroke-width="1.2"/><circle cx="24" cy="19" r="3" fill="#c0392b"/></svg>';
+function groupArt(type){ /* 兵士の絵を重ねて部隊の絵にする */ const row=SPR_ROW[SIM.baseOf(type)]||0; return [[3,0,-2,1],[0,0,16,0],[3,1,34,1],[0,0,52,0]].map(([c,m,x,z],i)=>`<i class="g${i}" style="left:${x}px;z-index:${z};background-position:${(c/7*100).toFixed(3)}% ${row*50}%${m?';transform:scaleX(-1)':''}"></i>`).join(''); }
 function showBrief(){
   const AR=armyFor();
   Object.assign(CAM,{x:-4,z:-95,dist:215});
   const cap=SIM.capOf(MAP),E=MAP.enemy,cnt={};
   for(const w of E.waves) for(const u of w.units) cnt[u.type]=(cnt[u.type]||0)+u.men;
   const tot=Object.values(cnt).reduce((a,b)=>a+b,0);
-  const mix=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]).map(k=>`<span class="k t-${k}">${G(k)}</span>${T[k].name} ${Math.round(cnt[k]/tot*100)}%`).join('　');
-  const role=t=>({yari:'騎馬に強い・弓に弱い。門で敵を食い止める',yumi:'足軽に強い・騎馬に弱い。櫓や石垣の上で射程がのびる',kiba:'弓に強い・足軽に弱い。足が速い。狭い門では弱い'})[t];
-  const M=$('obModal'); M.hidden=false; M.innerHTML=`<div class="obSheet">
-  <p class="obEra">第${MAP.stage}の城　${MAP.castle}</p><h1>${MAP.title}</h1><p class="obSub">${MAP.era}</p>
-  <div class="obCond"><div><small>勝利</small><b>${MAP.goal}</b>（${Math.round(MAP.duration/60)}分）</div><div><small>敗北</small><b>本丸に敵が入る</b></div></div>
-  <h2>我が軍　<small>${AR.army.length}部隊／上限${cap}（入口${MAP.gates.length}＋${MAP.capBonus}）${AR.carried?'・前の城から持ち越し（後詰め込み）':''}</small></h2>
-  <ul class="obArmy">${AR.army.map(a=>`<li><span class="k t-${a.type}">${G(a.type)}</span><b>${a.name}</b>${T[a.type].name} ${a.men}人<small>${role(a.type)}</small></li>`).join('')}</ul>
-  <p class="obGen">担当武将 <b>${MAP.general.name}</b>（${MAP.general.title}）特技「${MAP.general.skill.name}」${MAP.general.skill.text}</p>
-  <h2>敵の傾向　<small>${E.side}・${E.waves.length}波</small></h2>
-  <p class="obMix">${mix}</p><p>${E.trend}。大将 <b>${E.boss.name}</b>（特技「${E.boss.skill.name}」${E.boss.skill.text}）</p>
-  <div class="obRps"><span class="k t-yari">${G('yari')}</span>足軽→<span class="k t-kiba">${G('kiba')}</span>騎馬→<span class="k t-yumi">${G('yumi')}</span>弓→<span class="k t-yari">${G('yari')}</span><small>矢印の先に強い（有利1.5倍・不利0.6倍）。不利な相手や挟み撃ちで士気が下がり、0になると敗走</small></div>
-  <p class="obHow">部隊のアイコン（下の札）をタップすると<b>時間が止まり</b>、指示を出せます。行き先や相手をタップすると再開。まとめて指示するときは右上の ❚❚。赤い点線が敵の進軍ルートです。<br>部隊ごとの<b>特技</b>と、采配を使う<b>策</b>（鼓舞・落石・門を閉ざす）も使いこなそう。右上の🔊で効果音のオン・オフ。</p>
-  <div class="obAct"><button class="obBtn obGo" id="obStart">出陣</button><button class="obBtn" id="obBackSt">城選びへ戻る</button><button class="obBtn" id="obBenchBtn">負荷テスト</button></div></div>`;
-  $('obStart').onclick=startBattle; $('obBackSt').onclick=goStages; $('obBenchBtn').onclick=showBenchSetup;
+  const mix=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]).map(k=>`<span><i class="tic t-${k}">${G(k)}</i>${T[k].name} ${Math.round(cnt[k]/tot*100)}%</span>`).join('');
+  const role=t=>({yari:'騎馬に強い・弓に弱い。<br>門で敵を食い止める',yumi:'足軽に強い・騎馬に弱い。<br>櫓や石垣の上で射程がのびる',kiba:'弓に強い・足軽に弱い。<br>足が速い。狭い門では弱い',teppo:'足軽に強い・騎馬に弱い。<br>射程が長い'})[t];
+  const B0=E.boss||{},por=B0.portrait?`<div class="por" style="background-image:url(${(window.OB_GAME_URL||'/defence-castle/')}battle/img/${B0.portrait})"></div>`:`<div class="por spr" style="background-position:${(4/7*100).toFixed(3)}% ${(SPR_ROW[(E.waves.flatMap(w=>w.units).find(u=>u.boss)||{}).type]||0)*50}%"></div>`;
+  const hint=(MAP.hint?MAP.hint+'<br>':'')+`本隊は<b>${B0.name}</b>。${B0.skill?`特技「${B0.skill.name}」${B0.skill.text}。`:''}<br><span class="gen">味方 ${MAP.general.name}「${MAP.general.skill.name}」${MAP.general.skill.text}</span>`;
+  const M=$('obModal'); M.hidden=false; M.className='obModal obBriefM';
+  M.innerHTML=`<div class="obBrief">
+  <div class="obB-stage">${MON}<span>第${MAP.stage}の城　${MAP.castle}</span></div>
+  <h1 class="obB-title"><span>${MAP.title}</span></h1>
+  <p class="obB-era">${MAP.era}</p>
+  <div class="obB-cond">
+    <div class="obB-card win"><em class="rib red">勝利条件</em>${MON}<b>${MAP.goal}<small>（${Math.round(MAP.duration/60)}分）</small></b></div>
+    <div class="obB-card lose"><em class="rib blue">敗北条件</em>${MON}<b>本丸に敵が入る</b></div>
+  </div>
+  <section class="obB-army"><header>${KABUTO}<b>我が軍</b><span>${AR.army.length}部隊／上限${cap}（入口${MAP.gates.length}+${MAP.capBonus}）${AR.carried?'<small>前の城から持ち越し</small>':''}</span></header>
+    ${AR.army.map(a=>`<div class="obB-row"><div class="grp">${groupArt(a.type)}</div><i class="tic t-${SIM.baseOf(a.type)}">${G(a.type)}</i><div class="nm"><b>${a.name}</b><span>${T[a.type].name} ${a.men}人</span></div><p>${role(a.type)}</p></div>`).join('')}
+  </section>
+  <section class="obB-enemy">${MON}<h3>敵の<br>傾向</h3><div><div class="mix">${mix}</div><p>${E.trend}</p></div></section>
+  <section class="obB-hint">${por}<em class="rib red">攻略のヒント</em><p>${hint}</p></section>
+  <p class="obB-how">アイコンをタップすると時間が止まり、指示を出せます。特技と策（鼓舞・落石・門を閉ざす）も使いこなそう。</p>
+  <div class="obB-act"><button class="obB-btn back" id="obBack"><span>戻る</span></button><button class="obB-btn go" id="obStart"><span>出陣</span></button><button class="obB-btn st" id="obBackSt"><span>城選びへ</span></button></div>
+  </div>`;
+  $('obStart').onclick=()=>{ M.className='obModal'; startBattle(); }; $('obBackSt').onclick=goStages; $('obBack').onclick=goTitle;
 }
 function showResult(){
+  $('obModal').className='obModal';
   const r=B.result(),cap=(MAP.next&&MAP.next.cap)||SIM.capOf(MAP),nx=SIM.nextArmy(r,cap),win=r.state==='win',lossP=Math.round(nx.lossRate*100);
   const sv=loadSave(); sv[MAP.id]=Object.assign(sv[MAP.id]||{},{played:(sv[MAP.id]&&sv[MAP.id].played||0)+1}); if(win){ sv[MAP.id].cleared=true; sv[MAP.id].bestLoss=Math.min(sv[MAP.id].bestLoss===undefined?100:sv[MAP.id].bestLoss,lossP); sv.army=nx.army.map(a=>({id:a.id,gen:a.gen,name:a.name,type:a.type,men:a.menNext})); sv.next=MAP.next&&MAP.next.castle; sv.armyFor=MAP.next&&MAP.next.id; } saveSave(sv);
   if(win) IY.applyTime(MAP.goal.includes('日没')?3:2); OB.shadowDirty=3;
@@ -539,6 +552,7 @@ function goTitle(){ location.href=GAME; }
 /* ================= 負荷テスト（iPhoneで何部隊まで快適に動くか） ================= */
 const BEN={ally:6,enemy:20,men:400,auto:false,step:0,log:[],res:null};
 function showBenchSetup(){
+  $('obModal').className='obModal';
   const M=$('obModal'); M.hidden=false; M.innerHTML=`<div class="obSheet"><p class="obEra">確認用</p><h1>負荷テスト</h1>
   <p class="obSub">味方・敵の部隊を増やして、この端末で何部隊まで快適に動くかを測ります。兵100人＝兵士1体（1部隊の表示は最大24体）。</p>
   <label class="obRange">味方の部隊 <b id="bvA">${BEN.ally}</b><input id="biA" type="range" min="1" max="40" value="${BEN.ally}"></label>

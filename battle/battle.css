@@ -159,3 +159,59 @@ html.obattle:not(.obready) body::after{content:"陣を敷いております…";
 .obU.rout .spr{filter:grayscale(.8) brightness(.9)}
 .obU.target{animation:none} .obU.target .spr{animation:obSprPulse .9s infinite}
 @keyframes obSprPulse{50%{filter:drop-shadow(0 0 6px #ffd98a) drop-shadow(0 0 6px #ffd98a)}}
+/* ===== 出陣前の画面（和風のゲーム画面） ===== */
+.obModal.obBriefM{background:linear-gradient(180deg,rgba(255,236,190,.05) 0%,rgba(20,14,8,.25) 45%,rgba(20,14,8,.55) 100%);align-items:flex-start;padding:calc(env(safe-area-inset-top,0px) + 8px) 8px calc(env(safe-area-inset-bottom,0px) + 8px)}
+.obBrief{width:min(560px,100%);margin:0 auto;color:#2a1d10;font-family:"Hiragino Sans","Noto Sans JP",sans-serif;animation:obIn .5s ease-out}
+.obBrief .mc,.obB-title,.obB-stage,.obB-army header b,.obB-enemy h3,.rib,.obB-btn{font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif}
+.obMon{width:28px;height:28px;flex:none} .obMon .ring{fill:#2a1d10;stroke:#d6a933;stroke-width:2} .obMon .pet ellipse{fill:#e9c35b} .obMon .core{fill:#2a1d10}
+.obB-stage{display:inline-flex;align-items:center;gap:8px;padding:4px 18px 4px 6px;background:linear-gradient(90deg,#1d1812,#2c241a);border:2px solid #c9a24a;border-radius:6px 22px 22px 6px;color:#f6e3b0;font-weight:700;font-size:15px;letter-spacing:.12em;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.obB-title{position:relative;margin:8px 0 4px;padding:6px 18px 10px 14px;display:inline-block;font-weight:900;font-size:clamp(34px,10.5vw,54px);line-height:1.1;letter-spacing:.06em}
+.obB-title::before{content:"";position:absolute;inset:4px -10px 0 -4px;background:#14100c;z-index:0;
+  clip-path:polygon(2% 18%,10% 6%,30% 12%,55% 2%,78% 9%,97% 4%,100% 30%,96% 62%,100% 88%,82% 96%,58% 90%,34% 98%,12% 92%,0% 80%,3% 50%);filter:drop-shadow(0 3px 4px rgba(0,0,0,.45))}
+.obB-title span{position:relative;z-index:1;background:linear-gradient(180deg,#fff6cf 0%,#f3cf6a 45%,#c88a1e 70%,#f7dc8a 100%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-stroke:1px #5a3a08;filter:drop-shadow(0 2px 0 #000)}
+.obB-era{margin:2px 0 10px;font-weight:700;font-size:13px;color:#fff;text-shadow:0 1px 2px #000,0 0 6px rgba(0,0,0,.8);line-height:1.5}
+.obB-cond{display:flex;gap:10px;margin:14px 0 12px}
+.obB-card{position:relative;flex:1;display:flex;align-items:center;gap:8px;min-height:74px;padding:20px 10px 10px;background:linear-gradient(180deg,#fbf3dc,#ead8ae);border:2px solid #c9a24a;border-radius:10px;box-shadow:inset 0 0 0 2px rgba(255,255,255,.5),0 3px 8px rgba(0,0,0,.35)}
+.obB-card b{font-family:"Hiragino Mincho ProN","Yu Mincho",serif;font-size:15.5px;line-height:1.35;font-weight:800} .obB-card b small{display:block;font-size:13px;text-align:center}
+.obB-card .obMon{width:36px;height:36px} .obB-card.lose .obMon .ring{fill:#1e3a78} .obB-card.lose .obMon .pet ellipse{fill:#fff} .obB-card.lose .obMon .core{fill:#1e3a78}
+.rib{position:absolute;left:50%;top:-12px;transform:translateX(-50%);white-space:nowrap;padding:3px 22px;font-style:normal;font-weight:800;font-size:14.5px;letter-spacing:.2em;color:#fff6dc;text-shadow:0 1px 0 rgba(0,0,0,.4);
+  clip-path:polygon(0 0,100% 0,94% 50%,100% 100%,0 100%,6% 50%)}
+.rib.red{background:linear-gradient(180deg,#d9412f,#9d2014)} .rib.blue{background:linear-gradient(180deg,#3d66c0,#1d3a80)}
+.obB-army,.obB-enemy{background:linear-gradient(180deg,#221c16,#14100c);border:2px solid #c9a24a;border-radius:12px;box-shadow:inset 0 0 0 1px rgba(255,220,140,.25),0 4px 10px rgba(0,0,0,.45);color:#f6e8c8}
+.obB-army{padding:8px 8px 10px}
+.obB-army header{display:flex;align-items:center;gap:10px;padding:2px 6px 8px;border-bottom:1px solid rgba(214,169,51,.45);margin-bottom:8px}
+.obB-army header b{font-size:22px;font-weight:900;letter-spacing:.12em;color:#f6e3b0} .obB-army header span{font-size:14px;font-weight:700} .obB-army header small{display:block;font-size:11px;color:#e8c983;font-weight:500}
+.obKabuto{width:38px;height:32px;flex:none}
+.obB-row{display:grid;grid-template-columns:auto auto 1fr;grid-template-areas:"grp tic nm" "grp tic rl";align-items:center;gap:0 10px;margin-top:6px;padding:6px 10px 6px 6px;background:linear-gradient(180deg,#fbf3dc,#ecdbb3);border:1px solid #c9a24a;border-radius:8px;color:#2a1d10}
+.obB-row .grp{grid-area:grp;position:relative;width:86px;height:56px}
+.obB-row .grp i{position:absolute;bottom:-2px;width:39px;height:56px;background-image:var(--spr);background-size:312px 168px;background-repeat:no-repeat;filter:drop-shadow(0 1px 1px rgba(0,0,0,.4))}
+.tic{grid-area:tic;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;box-shadow:inset 0 0 0 2px rgba(255,255,255,.35),0 2px 3px rgba(0,0,0,.3);flex:none}
+.tic .gl{width:30px;height:30px} .tic.t-yari{background:#2f8a5a} .tic.t-yumi{background:#8e56c2} .tic.t-kiba{background:#d0682a} .tic.t-teppo{background:#555}
+.obB-row .nm{grid-area:nm;line-height:1.25} .obB-row .nm b{font-family:"Hiragino Mincho ProN",serif;font-size:18px;font-weight:900;display:block} .obB-row .nm span{font-size:14px;font-weight:700}
+.obB-row p{grid-area:rl;margin:2px 0 0;font-size:11.5px;line-height:1.45;color:#4a3826;border-top:1px dashed rgba(120,90,40,.35);padding-top:3px}
+@media (min-width:500px){ .obB-row{grid-template-columns:auto auto 1fr 1.2fr;grid-template-areas:"grp tic nm rl"} .obB-row p{border-top:0;border-left:1px solid rgba(120,90,40,.45);padding:0 0 0 10px;margin:0} }
+.obB-enemy{display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 12px}
+.obB-enemy>.obMon{width:52px;height:52px} .obB-enemy h3{margin:0;font-size:20px;font-weight:900;line-height:1.2;color:#f6e3b0;padding-right:10px;border-right:1px solid rgba(214,169,51,.45)}
+.obB-enemy .mix{display:flex;flex-wrap:wrap;gap:6px 12px;font-weight:700;font-size:13.5px} .obB-enemy .mix span{display:inline-flex;align-items:center;gap:5px}
+.obB-enemy .tic{width:30px;height:30px} .obB-enemy .tic .gl{width:20px;height:20px}
+.obB-enemy p{margin:6px 0 0;font-size:12px;line-height:1.55;color:#f1e4c6}
+.obB-hint{position:relative;display:flex;align-items:center;gap:12px;margin-top:22px;padding:16px 12px 12px 4px;background:linear-gradient(180deg,#fbf3dc,#ead8ae);border:2px solid #c9a24a;border-radius:12px;box-shadow:0 4px 10px rgba(0,0,0,.4)}
+.obB-hint .rib{left:110px;transform:none;top:-13px}
+.obB-hint .por{flex:none;width:96px;height:92px;margin:-26px 0 -6px 2px;border-radius:10px;border:3px solid #c9a24a;background-size:cover;background-position:center;box-shadow:0 3px 8px rgba(0,0,0,.45);background-color:#5a1d14}
+.obB-hint .por.spr{background-image:var(--spr);background-size:768px 288px;background-color:#e9d2a2}
+.obB-hint p{margin:0;font-size:13px;line-height:1.6;font-weight:600} .obB-hint .gen{font-size:11.5px;color:#5a4426;font-weight:500}
+.obB-how{margin:10px 2px 0;font-size:11.5px;color:#fff;text-shadow:0 1px 2px #000;text-align:center}
+.obB-act{display:flex;align-items:center;gap:8px;margin:14px 0 6px}
+.obB-btn{position:relative;border:0;cursor:pointer;color:#fff;font-weight:900;letter-spacing:.14em;-webkit-tap-highlight-color:transparent;text-shadow:0 2px 0 rgba(0,0,0,.4)}
+.obB-btn:active{transform:scale(.96)}
+.obB-btn.back,.obB-btn.st{flex:1;height:54px;border-radius:12px;font-size:17px;border:2px solid #c9a24a;box-shadow:inset 0 2px 0 rgba(255,255,255,.25),0 4px 0 #0b1530,0 6px 10px rgba(0,0,0,.4)}
+.obB-btn.back{background:linear-gradient(180deg,#3f73d6,#1f3f92)} .obB-btn.back span::before{content:"↩ ";font-family:system-ui}
+.obB-btn.st{background:linear-gradient(180deg,#2c3f6e,#16223f)} .obB-btn.st span::before{content:"📜 "}
+.obB-btn.go{flex:1.6;height:72px;border-radius:16px;font-size:30px;background:radial-gradient(ellipse at 50% 30%,#ef4a35,#b51f12 60%,#7f130a);border:3px solid #e9c35b;
+  box-shadow:inset 0 0 0 3px rgba(255,220,140,.45),0 5px 0 #4d0b05,0 8px 14px rgba(0,0,0,.45)}
+.obB-btn.go span::before{content:"⚔ ";font-size:.8em}
+.obB-btn.go::after{content:"";position:absolute;inset:-7px;border-radius:20px;border:2px solid rgba(233,195,91,.6);pointer-events:none}
+#obRoot .obB-btn{color:#fff;font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;font-weight:900;font-size:18px;letter-spacing:.14em}
+#obRoot .obB-btn.go{font-size:32px;letter-spacing:.2em}
+#obRoot .obB-btn.back,#obRoot .obB-btn.st{font-size:16px;letter-spacing:.06em;white-space:nowrap;padding:0 6px}
+.obB-btn.st span::before{content:"";display:inline-block;width:14px;height:16px;margin-right:5px;vertical-align:-2px;background:linear-gradient(180deg,#f3e3b8,#c9a96a);border-radius:2px;box-shadow:inset 0 3px 0 #8a6a33,inset 0 -3px 0 #8a6a33}

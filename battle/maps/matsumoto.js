@@ -60,7 +60,7 @@ const MAP={
   enemy:{
     side:'武田勢', scale:.85,
     trend:'騎馬が多い。大手門（南）と北東の外堀ぞいから太鼓門へ。二の手からは西の堀を渡り塀をよじ登る兵も来る。本隊は武田晴信（信玄）の騎馬',
-    boss:{name:'武田晴信（信玄）',skill:{kind:'yama',name:'動かざること山の如し',text:'大将の部隊は士気が下がりにくい'}},
+    boss:{name:'武田晴信（信玄）',portrait:'boss_takeda.webp',skill:{kind:'yama',name:'動かざること山の如し',text:'大将の部隊は士気が下がりにくい'}},
     waves:[
       {t:12, label:'先手', text:'武田の先手が大手と北東の外堀ぞいに現れた',units:[
         {route:'ote',type:'yari',men:320},{route:'ote',type:'kiba',men:260},{route:'higashi',type:'yari',men:300}]},
