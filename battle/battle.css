@@ -130,3 +130,14 @@ html.obattle:not(.obready) body::after{content:"陣を敷いております…";
 @media (orientation:landscape) and (max-height:500px){ #obSaku{left:auto;right:calc(env(safe-area-inset-right,0px) + 8px);transform:none;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);width:min(330px,38%)} #obOrder,#obPrompt{bottom:calc(env(safe-area-inset-bottom,0px) + 64px)} }
 @media (max-width:480px){ .obBtns{gap:4px} .obBtns .obBtn{width:36px;min-height:38px;font-size:13px} #obTop{gap:4px} }
 #obSaku[hidden],#obRoot.inMenu #obSaku{display:none}
+/* ===== 兵種の絵のアイコン ===== */
+.gl{width:72%;height:72%;display:block;color:#fff;filter:drop-shadow(0 1px 0 rgba(0,0,0,.35))}
+.obU{border-radius:9px;width:36px;height:36px;margin:-18px 0 0 -18px}
+.obU.enemy{border-radius:50%;width:32px;height:32px;margin:-16px 0 0 -16px}
+.obU.boss{border-radius:50%;width:38px;height:38px;margin:-19px 0 0 -19px}
+.obU.ally::after{content:"";position:absolute;left:50%;top:100%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#e9eef8;margin-top:0}
+.obU.enemy::after{content:"";position:absolute;left:50%;top:100%;transform:translateX(-50%);border:4px solid transparent;border-top-color:#f7d9d2}
+.obU .n{margin-top:6px} .obU .m{top:calc(100% + 21px)}
+.k .gl{width:80%;height:80%} .obCard .k{width:26px;height:26px}
+.obU .k,.obU.t-yari .k,.obU.t-yumi .k,.obU.t-kiba .k{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:none}
+.obU .gl{width:24px;height:24px} .obU.enemy .gl{width:21px;height:21px} .obU.boss .gl{width:24px;height:24px}

@@ -71,6 +71,38 @@ function navPath(nav,ax,az,bx,bz,h){
   out.push([bx,bz]); return out;
 }
 
+/* ---------- 味方の最短経路（城内の地形をマス目にして探す） ----------
+   2mのマス目。となりのマスとの高さの差が急すぎる所（石垣・崖）は通れない。坂道は通れる。
+   道の網（buildNav）だと遠回りになるため、味方の移動はこちらを使う。 */
+class Grid{
+  constructor(b,h,cell){ this.c=cell||2; this.x0=b.x0; this.z0=b.z0; this.W=Math.ceil((b.x1-b.x0)/this.c)+1; this.H=Math.ceil((b.z1-b.z0)/this.c)+1;
+    const n=this.W*this.H; this.h=new Float32Array(n); for(let j=0;j<this.H;j++) for(let i=0;i<this.W;i++) this.h[j*this.W+i]=h(this.x0+i*this.c,this.z0+j*this.c);
+    this.maxSlope=.8; this.g=new Float32Array(n); this.f=new Float32Array(n); this.par=new Int32Array(n); this.stamp=new Uint32Array(n); this.closed=new Uint32Array(n); this.run=0; }
+  idx(x,z){ const i=Math.round((x-this.x0)/this.c),j=Math.round((z-this.z0)/this.c); if(i<0||j<0||i>=this.W||j>=this.H) return -1; return j*this.W+i; }
+  pos(k){ return [this.x0+(k%this.W)*this.c,this.z0+Math.floor(k/this.W)*this.c]; }
+  ok(a,b,d){ return Math.abs(this.h[a]-this.h[b])/d<=this.maxSlope; }
+  /* マス目の上をまっすぐ行けるか（経路をなめらかにするため） */
+  line(ax,az,bx,bz){ const L=Math.hypot(bx-ax,bz-az),n=Math.ceil(L/(this.c*.5)); let pk=this.idx(ax,az),ph=null; for(let i=1;i<=n;i++){ const x=ax+(bx-ax)*i/n,z=az+(bz-az)*i/n,k=this.idx(x,z); if(k<0) return false; if(k!==pk){ const d=Math.hypot(...this.pos(k).map((v,q)=>v-this.pos(pk)[q]))||this.c; if(!this.ok(pk,k,d)) return false; pk=k; } } return true; }
+  find(ax,az,bx,bz){
+    const s=this.idx(ax,az),t=this.idx(bx,bz); if(s<0||t<0) return null; if(s===t) return [[bx,bz]];
+    const run=++this.run,W=this.W,c=this.c,D2=c*Math.SQRT2; const heap=[];
+    const push=k=>{ heap.push(k); let i=heap.length-1; while(i>0){ const p=(i-1)>>1; if(this.f[heap[p]]<=this.f[k]) break; heap[i]=heap[p]; i=p; } heap[i]=k; };
+    const pop=()=>{ const top=heap[0],last=heap.pop(); if(heap.length){ let i=0; const n=heap.length; for(;;){ let l=2*i+1,r=l+1,m=i; if(l<n&&this.f[heap[l]]<this.f[m===i?last:heap[m]]) m=l; if(r<n&&this.f[heap[r]]<this.f[m===i?last:heap[m]]) m=r; if(m===i) break; heap[i]=heap[m]; i=m; } heap[i]=last; } return top; };
+    const [tx,tz]=this.pos(t),hh=k=>{ const [x,z]=this.pos(k),dx=Math.abs(x-tx),dz=Math.abs(z-tz); return Math.max(dx,dz)+(Math.SQRT2-1)*Math.min(dx,dz); };
+    this.stamp[s]=run; this.g[s]=0; this.f[s]=hh(s); this.par[s]=-1; push(s); let best=s,bh=this.f[s],it=0;
+    const NB=[[1,0,c],[-1,0,c],[0,1,c],[0,-1,c],[1,1,D2],[1,-1,D2],[-1,1,D2],[-1,-1,D2]];
+    while(heap.length&&it++<60000){ const k=pop(); if(this.closed[k]===run) continue; this.closed[k]=run; if(k===t){ best=t; break; }
+      const hk=this.f[k]-this.g[k]; if(hk<bh){ bh=hk; best=k; }
+      const i=k%W,j=(k-i)/W;
+      for(const [di,dj,d] of NB){ const ni=i+di,nj=j+dj; if(ni<0||nj<0||ni>=W||nj>=this.H) continue; const nk=nj*W+ni; if(this.closed[nk]===run||!this.ok(k,nk,d)) continue;
+        if(di&&dj&&(!this.ok(k,j*W+ni,c)||!this.ok(k,nj*W+i,c))) continue;
+        const ng=this.g[k]+d+Math.abs(this.h[nk]-this.h[k])*.6; if(this.stamp[nk]!==run||ng<this.g[nk]){ this.stamp[nk]=run; this.g[nk]=ng; this.f[nk]=ng+hh(nk); this.par[nk]=k; push(nk); } } }
+    const raw=[]; for(let k=best;k>=0;k=this.par[k]) raw.unshift(this.pos(k)); if(best===t) raw.push([bx,bz]); raw[0]=[ax,az];
+    /* なめらかに（見通せる点は飛ばす） */
+    const out=[]; let a=0; while(a<raw.length-1){ let b=raw.length-1; while(b>a+1&&!this.line(raw[a][0],raw[a][1],raw[b][0],raw[b][1])) b--; out.push(raw[b]); a=b; }
+    return out.length?out:[[bx,bz]]; }
+}
+
 /* ---------- 進軍ルート ---------- */
 function prepRoute(r){ const cum=[0]; for(let i=1;i<r.pts.length;i++) cum.push(cum[i-1]+dist(r.pts[i-1][0],r.pts[i-1][1],r.pts[i][0],r.pts[i][1])); r.cum=cum; r.len=cum[cum.length-1]; return r; }
 function projRoute(r,x,z){ let best=1e9,bs=0,bi=1; for(let i=1;i<r.pts.length;i++){ const [ax,az]=r.pts[i-1],[bx,bz]=r.pts[i],dx=bx-ax,dz=bz-az,l2=dx*dx+dz*dz,t=l2?clamp(((x-ax)*dx+(z-az)*dz)/l2,0,1):0,d=dist(x,z,ax+dx*t,az+dz*t); if(d<best){ best=d; bs=r.cum[i-1]+Math.sqrt(l2)*t; bi=i; } } return {s:bs,i:bi,d:best}; }
@@ -87,6 +119,7 @@ class Battle{
     this.routes={}; for(const r of map.routes) this.routes[r.id]=prepRoute(Object.assign({},r));
     this.slots=map.slots.map(s=>Object.assign({},s));
     this.nav=buildNav(map);
+    this.grid=null; if(opt.grid!==false&&map.keep) this.grid=new Grid(map.keep,this.h,2); /* 城内のマス目（合戦の始めに一度だけ作る） */
     this.lines=map.lines; this.breached=0;
     /* 防衛線がルートのどこにあたるか */
     this.lineS={}; for(const id in this.routes){ const r=this.routes[id]; this.lineS[id]=this.lines.map(L=>{ let s=null; for(const p of L.pts){ const q=projRoute(r,p[0],p[1]); if(q.d<15) s=s===null?q.s:Math.min(s,q.s); } return s; }); }
@@ -141,7 +174,11 @@ class Battle{
   lineOf(u){ /* 今いる場所の防衛線（いちばん近い配置場所の線） */ let b=null,bd=1e9; for(const s of this.slots){ const d=dist(s.pos[0],s.pos[1],u.x,u.z); if(d<bd){ bd=d; b=s; } } return b?b.line:1; }
   retreatSlot(u){ const L=this.lineOf(u),maxL=Math.max(...this.slots.map(s=>s.line)); const want=Math.min(maxL,L+1);
     let b=null,bd=1e9; for(const s of this.slots) if(s.line===want){ const d=dist(s.pos[0],s.pos[1],u.x,u.z)+(s.kind==='gate'&&TYPES[u.type].melee?-10:0); if(d<bd){ bd=d; b=s; } } return b||this.slots[this.slots.length-1]; }
-  goTo(u,x,z){ u.path=navPath(this.nav,u.x,u.z,x,z,this.h); u.goal=[x,z]; }
+  goTo(u,x,z){ u.path=this.pathFor(u.x,u.z,x,z); u.goal=[x,z]; u.repath=this.time+.8; }
+  /* 味方の経路: 城内のマス目で最短。マス目の外は道の網 */
+  pathFor(ax,az,bx,bz){ if(this.grid===null) this.grid=this.map.keep?new Grid(this.map.keep,this.h,2):false;
+    if(this.grid){ const p=this.grid.find(ax,az,bx,bz); if(p&&p.length) return p; } return navPath(this.nav,ax,az,bx,bz,this.h); }
+  stale(u,x,z,r){ return !u.path||!u.goal||(dist(u.goal[0],u.goal[1],x,z)>r&&this.time>=(u.repath||0)); }
 
   /* ---------- 進める ---------- */
   step(dt){ if(this.state!=='run') return; this.acc+=dt; const T=this.C.tick; let n=0; while(this.acc>=T&&n<20){ this.acc-=T; this.tick(T); n++; } if(n>=20) this.acc=0; }
@@ -178,7 +215,7 @@ class Battle{
     if(o.kind==='hold') anchor=[o.x,o.z];
     else if(o.kind==='reinforce'){ const t=o.target; if(!t||t.state==='dead'||t.state==='gone'){ u.order={kind:'hold',x:u.x,z:u.z}; return; } anchor=[t.x+Math.sin(t.heading+Math.PI/2)*6,t.z+Math.cos(t.heading+Math.PI/2)*6]; }
     else if(o.kind==='intercept'){ const t=o.target; if(!t||t.state==='dead'||t.state==='gone'){ u.order={kind:'hold',x:u.x,z:u.z,slot:this.slotAt(u)}; u.target=null; return; }
-      u.target=t; const d=dist(u.x,u.z,t.x,t.z); if(d>(T.melee?this.C.contact:range*.9)){ if(!u.path||!u.goal||dist(u.goal[0],u.goal[1],t.x,t.z)>6) this.goTo(u,t.x,t.z); } else u.path=null; return; }
+      u.target=t; const d=dist(u.x,u.z,t.x,t.z); if(d>(T.melee?this.C.contact:range*.9)){ if(this.stale(u,t.x,t.z,6)) this.goTo(u,t.x,t.z); } else u.path=null; return; }
     else if(o.kind==='auto'){ u.aiT=(u.aiT||0)-dt; if(u.aiT<=0){ u.aiT=1.5; this.autoPick(u,E); } anchor=u.autoAnchor||[u.home.pos[0],u.home.pos[1]]; }
     /* 守備・援軍・任せる: 近くの敵と戦う */
     const leash=T.melee?(u.type==='kiba'?22:14):range;
@@ -186,11 +223,11 @@ class Battle{
     if(!T.melee){ /* 弓: 動かずに射る（射程の外の敵は、任せるときだけ寄る） */
       const inR=nearestE(u.x,u.z,range,true); u.target=inR;
       const ad=dist(u.x,u.z,anchor[0],anchor[1]);
-      if(!inR&&o.kind==='auto'&&t){ if(!u.path||!u.goal||dist(u.goal[0],u.goal[1],t.x,t.z)>10) this.goTo(u,t.x,t.z); }
+      if(!inR&&o.kind==='auto'&&t){ if(this.stale(u,t.x,t.z,10)) this.goTo(u,t.x,t.z); }
       else if(inR){ u.path=null; }
       else if(ad>2.5){ if(!u.path||!u.goal||dist(u.goal[0],u.goal[1],anchor[0],anchor[1])>2) this.goTo(u,anchor[0],anchor[1]); }
       return; }
-    if(t){ u.target=t; const d=dist(u.x,u.z,t.x,t.z); if(d>this.C.contact*.9){ if(!u.path||!u.goal||dist(u.goal[0],u.goal[1],t.x,t.z)>5) this.goTo(u,t.x,t.z); } else u.path=null; }
+    if(t){ u.target=t; const d=dist(u.x,u.z,t.x,t.z); if(d>this.C.contact*.9){ if(this.stale(u,t.x,t.z,5)) this.goTo(u,t.x,t.z); } else u.path=null; }
     else { u.target=null; const ad=dist(u.x,u.z,anchor[0],anchor[1]); if(ad>2.5){ if(!u.path||!u.goal||dist(u.goal[0],u.goal[1],anchor[0],anchor[1])>2) this.goTo(u,anchor[0],anchor[1]); } else u.path=null; }
   }
   /* 任せる: いちばん深く来ている敵の「一つ先の線」で待ち受け、有利な相手を選んで戦う */
@@ -366,6 +403,6 @@ function nextArmy(res,cap,opt){
   for(const a of army){ a.menNext=a.men+a.reinf; }
   return {lossRate,army,notes,bonus};
 }
-const API={TYPES,BEATS,SKILLS,SAKU,DEF,Battle,buildNav,navPath,projRoute,nextArmy,capOf,GROW,baseOf};
+const API={TYPES,BEATS,SKILLS,SAKU,DEF,Battle,Grid,buildNav,navPath,projRoute,nextArmy,capOf,GROW,baseOf};
 if(typeof module!=='undefined'&&module.exports) module.exports=API; else root.OshiroBattleSim=API;
 })(typeof window!=='undefined'?window:globalThis);

@@ -16,6 +16,14 @@ const $=id=>document.getElementById(id);
 const el=(tag,cls,html)=>{ const e=document.createElement(tag); if(cls) e.className=cls; if(html!==undefined) e.innerHTML=html; return e; };
 const fmt=s=>{ s=Math.max(0,Math.ceil(s)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 const H=(x,z)=>IY.groundH0(x,z);
+/* 兵種の絵（遠くからでも見分けやすい簡単な影絵。このゲームのために描いたもの） */
+const GLYPH={
+  yari:'<path d="M7.6 7.2 12 4.4l4.4 2.8z"/><circle cx="12" cy="8.6" r="1.7"/><path d="M9.6 10.6h4.8l1 5.4H8.6z"/><path d="M9 16h2.4l.6 5.2H9.8zM12.6 16H15l-.8 5.2h-2.2z"/><path d="M4.6 22.2 19.2 2.6" stroke="currentColor" stroke-width="1.4" fill="none"/><path d="m19.9 1.6-.5 3-2-1.5z"/>',
+  yumi:'<path d="M3.8 7.2 8 4.4l4.2 2.8z"/><circle cx="8" cy="8.6" r="1.7"/><path d="M5.6 10.6h4.8l1 5.4H4.6z"/><path d="M5 16h2.4L8 21.2H5.8zM8.6 16H11l-.8 5.2H8z"/><path d="M15.6 2.6c5.4 4.6 5.4 14.2 0 18.8" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M15.6 2.6v18.8M9.5 12h11" stroke="currentColor" stroke-width=".8" fill="none"/><path d="m21.6 12-1.8-1.1v2.2z"/>',
+  kiba:'<path d="M2.4 13.4c0-2.6 2.2-3.6 5-3.6h7.4l3.4-3.9 3 1.3-1.6 3c-.1 2.2-1.1 3.6-2.8 3.6H4.4z"/><path d="M5 13.4v6.4M7.6 13.4v6.4M15 13.4v6.4M17.2 13.4v6.4M3 11.4.8 15.6" stroke="currentColor" stroke-width="1.5" fill="none"/><circle cx="11" cy="3.6" r="1.6"/><path d="M9.6 5.4h2.8l.8 4.6H9z"/><path d="M13.4 6.4 22.6 1.8" stroke="currentColor" stroke-width="1.2" fill="none"/>'
+};
+GLYPH.teppo=GLYPH.yumi;
+const G=t=>`<svg class="gl" viewBox="0 0 24 24" fill="currentColor" aria-label="${(T[t]||T.yari).name}">${GLYPH[t]||GLYPH[SIM.baseOf(t)]||GLYPH.yari}</svg>`;
 
 const OB=window.OshiroBattle={ready:false,shadowCenter:[(MAP.keep.x0+MAP.keep.x1)/2,(MAP.keep.z0+MAP.keep.z1)/2],shadowDirty:4,frame,after,map:MAP};
 
@@ -205,7 +213,7 @@ function setLines(br){ $('obLines').querySelectorAll('span[data-i]').forEach(s=>
 /* 部隊のアイコン */
 const ORD={hold:'守',reinforce:'援',intercept:'迎',auto:'任',retreat:'退'};
 function iconFor(u){ let ic=UI.icons.get(u.id); if(ic) return ic;
-  ic=el('div','obU '+u.side+' t-'+u.base+(u.boss?' boss':''),`<span class="k">${T[u.type].short}</span><span class="n"></span><span class="m"><i></i></span>${u.side==='ally'?'<span class="o"></span>':''}${u.boss?'<span class="bs">大将</span>':''}`);
+  ic=el('div','obU '+u.side+' t-'+u.base+(u.boss?' boss':''),`<span class="k">${G(u.type)}</span><span class="n"></span><span class="m"><i></i></span>${u.side==='ally'?'<span class="o"></span>':''}${u.boss?'<span class="bs">大将</span>':''}`);
   ic.addEventListener('pointerdown',e=>{ e.stopPropagation(); ic._d=[e.clientX,e.clientY]; });
   ic.addEventListener('pointerup',e=>{ e.stopPropagation(); const d=ic._d; if(!d||Math.hypot(e.clientX-d[0],e.clientY-d[1])>14) return; tapUnit(u); });
   $('obIcons').appendChild(ic); UI.icons.set(u.id,ic); return ic; }
@@ -224,7 +232,7 @@ function updIcons(battle){
   } }
 /* 下の札（味方の部隊） */
 function buildCards(battle){ const C=$('obCards'); C.innerHTML=''; UI.cards.clear();
-  for(const u of battle.units.filter(u=>u.side==='ally')){ const c=el('button','obCard t-'+u.base,`<span class="k">${T[u.type].short}</span><span class="nm">${u.name}</span><span class="n"></span><span class="m"><i></i></span><span class="od"></span>`);
+  for(const u of battle.units.filter(u=>u.side==='ally')){ const c=el('button','obCard t-'+u.base,`<span class="k">${G(u.type)}</span><span class="nm">${u.name}</span><span class="n"></span><span class="m"><i></i></span><span class="od"></span>`);
     c.onclick=()=>tapUnit(u); C.appendChild(c); UI.cards.set(u.id,c); } }
 function updCards(battle){ for(const u of battle.units){ const c=UI.cards.get(u.id); if(!c) continue;
   c.querySelector('.n').textContent=u.men+'人'; c.querySelector('.m i').style.width=Math.round(u.morale)+'%';
@@ -252,7 +260,7 @@ function tapUnit(u){
   if(u.state==='rout'){ toast(u.name+'は敗走中。立ち直るまで指示できない（策「鼓舞」で立ち直る）','info'); return; }
   sfx('click'); UI.sel=u; if(!UI.pauseManual) UI.pauseOrder=true; showOrder(); }
 function showOrder(){ const u=UI.sel; $('obPrompt').hidden=true; $('obOrder').hidden=false;
-  $('obOName').innerHTML=`<span class="k t-${u.base}">${T[u.type].short}</span>${u.name}${u.gen?'<small>（'+u.gen+'）</small>':''}`;
+  $('obOName').innerHTML=`<span class="k t-${u.base}">${G(u.type)}</span>${u.name}${u.gen?'<small>（'+u.gen+'）</small>':''}`;
   const beat=T[SIM.BEATS[u.base]].name, lose=T[Object.keys(SIM.BEATS).find(k=>SIM.BEATS[k]===u.base)].name;
   $('obOStat').innerHTML=`${T[u.type].name} ${u.men}人 ・ 士気 ${Math.round(u.morale)} ・ ${orderText(u)}<br><small>${beat}に強い／${lose}に弱い</small>`;
   const S=B.skillOf(u),w=B.skillWait(u),act=B.buff(u,u.type),bt=$('obSkillB');
@@ -429,17 +437,17 @@ function showBrief(){
   const cap=SIM.capOf(MAP),E=MAP.enemy,cnt={};
   for(const w of E.waves) for(const u of w.units) cnt[u.type]=(cnt[u.type]||0)+u.men;
   const tot=Object.values(cnt).reduce((a,b)=>a+b,0);
-  const mix=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]).map(k=>`<span class="k t-${k}">${T[k].short}</span>${T[k].name} ${Math.round(cnt[k]/tot*100)}%`).join('　');
+  const mix=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]).map(k=>`<span class="k t-${k}">${G(k)}</span>${T[k].name} ${Math.round(cnt[k]/tot*100)}%`).join('　');
   const role=t=>({yari:'騎馬に強い・弓に弱い。門で敵を食い止める',yumi:'足軽に強い・騎馬に弱い。櫓や石垣の上で射程がのびる',kiba:'弓に強い・足軽に弱い。足が速い。狭い門では弱い'})[t];
   const M=$('obModal'); M.hidden=false; M.innerHTML=`<div class="obSheet">
   <p class="obEra">第${MAP.stage}の城　${MAP.castle}</p><h1>${MAP.title}</h1><p class="obSub">${MAP.era}</p>
   <div class="obCond"><div><small>勝利</small><b>${MAP.goal}</b>（${Math.round(MAP.duration/60)}分）</div><div><small>敗北</small><b>本丸に敵が入る</b></div></div>
   <h2>我が軍　<small>${MAP.army.length}部隊／上限${cap}（入口${MAP.gates.length}＋${MAP.capBonus}）</small></h2>
-  <ul class="obArmy">${MAP.army.map(a=>`<li><span class="k t-${a.type}">${T[a.type].short}</span><b>${a.name}</b>${T[a.type].name} ${a.men}人<small>${role(a.type)}</small></li>`).join('')}</ul>
+  <ul class="obArmy">${MAP.army.map(a=>`<li><span class="k t-${a.type}">${G(a.type)}</span><b>${a.name}</b>${T[a.type].name} ${a.men}人<small>${role(a.type)}</small></li>`).join('')}</ul>
   <p class="obGen">担当武将 <b>${MAP.general.name}</b>（${MAP.general.title}）特技「${MAP.general.skill.name}」${MAP.general.skill.text}</p>
   <h2>敵の傾向　<small>${E.side}・${E.waves.length}波</small></h2>
   <p class="obMix">${mix}</p><p>${E.trend}。大将 <b>${E.boss.name}</b>（特技「${E.boss.skill.name}」${E.boss.skill.text}）</p>
-  <div class="obRps"><span class="k t-yari">槍</span>→<span class="k t-kiba">騎</span>→<span class="k t-yumi">弓</span>→<span class="k t-yari">槍</span><small>矢印の先に強い（有利1.5倍・不利0.6倍）。不利な相手や挟み撃ちで士気が下がり、0になると敗走</small></div>
+  <div class="obRps"><span class="k t-yari">${G('yari')}</span>足軽→<span class="k t-kiba">${G('kiba')}</span>騎馬→<span class="k t-yumi">${G('yumi')}</span>弓→<span class="k t-yari">${G('yari')}</span><small>矢印の先に強い（有利1.5倍・不利0.6倍）。不利な相手や挟み撃ちで士気が下がり、0になると敗走</small></div>
   <p class="obHow">部隊のアイコン（下の札）をタップすると<b>時間が止まり</b>、指示を出せます。行き先や相手をタップすると再開。まとめて指示するときは右上の ❚❚。赤い点線が敵の進軍ルートです。<br>部隊ごとの<b>特技</b>と、采配を使う<b>策</b>（鼓舞・落石・門を閉ざす）も使いこなそう。右上の🔊で効果音のオン・オフ。</p>
   <div class="obAct"><button class="obBtn obGo" id="obStart">出陣</button><button class="obBtn" id="obBackSt">城選びへ戻る</button><button class="obBtn" id="obBenchBtn">負荷テスト</button></div></div>`;
   $('obStart').onclick=startBattle; $('obBackSt').onclick=goStages; $('obBenchBtn').onclick=showBenchSetup;
@@ -452,7 +460,7 @@ function showResult(){
   M.innerHTML=`<div class="obSheet ${win?'win':'lose'}"><p class="obEra">${MAP.castle}</p><h1>${win?'勝利':'落城'}</h1><p class="obSub">${r.why}（${fmt(r.time)}）</p>
   <div class="obCond"><div><small>味方の損害</small><b>${lossP}%</b>（${r.allyLost}／${r.allyMen0}人）</div><div><small>敵の損害</small><b>${r.enemyLost}人</b>／${r.enemyMen}人</div><div><small>押された所</small><b>${r.breached?MAP.lines[r.breached-1].short+'まで':'防衛線は無事'}</b></div></div>
   ${win?`<h2>次の合戦（${MAP.next?MAP.next.castle:''}）への持ち越し</h2>
-  <table class="obTab"><tr><th>部隊</th><th>合戦前</th><th>残り</th><th>合流</th><th>後詰め</th><th>次</th></tr>${nx.army.map(a=>{ const o=r.army.find(q=>q.id===a.id); return `<tr><td><span class="k t-${a.type}">${T[a.type].short}</span>${a.name}${a.isNew?' <em>新</em>':''}</td><td>${o?o.men0:'-'}</td><td>${a.isNew?'-':a.left}</td><td>${a.join?'+'+a.join:'-'}</td><td>+${a.reinf||0}</td><td><b>${a.menNext}</b></td></tr>`; }).join('')}</table>
+  <table class="obTab"><tr><th>部隊</th><th>合戦前</th><th>残り</th><th>合流</th><th>後詰め</th><th>次</th></tr>${nx.army.map(a=>{ const o=r.army.find(q=>q.id===a.id); return `<tr><td><span class="k t-${a.type}">${G(a.type)}</span>${a.name}${a.isNew?' <em>新</em>':''}</td><td>${o?o.men0:'-'}</td><td>${a.isNew?'-':a.left}</td><td>${a.join?'+'+a.join:'-'}</td><td>+${a.reinf||0}</td><td><b>${a.menNext}</b></td></tr>`; }).join('')}</table>
   <p class="obNote">${nx.notes.join('<br>')||'損害が2割以下なら、次の城で部隊が1つ増えます'}<br>次の城の部隊の上限は「入口の数＋補正」で決まります。敵の兵数も城ごとに増えます。</p>`:
   `<p class="obNote">本丸までの道は大手と搦手の2つ。三すくみを見て、門で足止めしながら弓で削るのがコツです。</p>`}
   <div class="obAct"><button class="obBtn obGo" id="obAgain">もう一度</button><button class="obBtn" id="obToBrief">出陣前の画面へ</button><button class="obBtn" id="obToSt">城選びへ</button></div></div>`;
