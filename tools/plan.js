@@ -2,7 +2,7 @@
    node plan.js [noskill]   環境変数 MAP=城のid  CARRY=1 で持ち越しの兵数 */
 const S=require('../battle/sim.js'),MAPID=process.env.MAP||'matsumoto',MAP=require('../battle/maps/'+MAPID+'.js');
 const ENV=MAPID==='inuyama'?{h:require('./terrain.js').groundH0}:require('./env/'+MAPID+'.js');
-const army=S.formArmy(MAP,Math.round(MAP.army.reduce((t,a)=>t+a.men,0)*(process.env.CARRY?1.1:1)));
+const army=S.formArmy(MAP,Math.round(S.baseArmy(MAP)*(process.env.CARRY?1.1:1)));
 const b=new S.Battle(MAP,{army,h:ENV.h,block:ENV.block,water:ENV.water,floor:ENV.floor});
 const sk=process.argv[2]!=='noskill';
 while(b.state==='run'){ b.step(.5);

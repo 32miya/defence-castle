@@ -35,7 +35,8 @@ const DEF={
   K:0.013,                   /* 1人が1秒に倒す人数の基準 */
   contact:7,                 /* 白兵戦の間合い（部隊の中心どうし, m） */
   tick:0.1,                  /* 計算の刻み（秒） */
-  menPerFigure:100,          /* 表示: 兵100人につき兵士1体 */
+  menScale:5,                /* 兵数の倍率: 設定データの人数をこの倍にして戦う（1部隊を数百〜千人規模に） */
+  menPerFigure:500,          /* 表示: 兵500人につき兵士1体 */
   routTime:12,               /* 敗走している時間 */
   rallyMorale:35,            /* 敗走から立ち直ったときの士気 */
   enemySpeed:.8,             /* 攻め手は用心して進む（味方より遅い） */
@@ -176,7 +177,7 @@ class Battle{
     this.units.push(u); return u; }
   spawnEnemy(e,wave){
     const r=this.routes[e.route],p0=r.pts[0],p1=r.pts[1],ang=Math.atan2(p1[0]-p0[0],p1[1]-p0[1]);
-    const u=this.mkUnit('enemy',e.type,Math.round(e.men*this.enemyScale),p0[0],p0[1],e.name||TYPES[e.type].name);
+    const u=this.mkUnit('enemy',e.type,Math.round(e.men*this.enemyScale*this.C.menScale/10)*10,p0[0],p0[1],e.name||TYPES[e.type].name);
     u.route=r; u.ri=1; u.s=0; u.heading=ang; u.boss=!!e.boss; u.wave=wave; u.gen=e.gen||'';
     if(u.boss&&this.bossSkill&&this.bossSkill.kind==='kishu'){ u.speedMul=1.15; }
     if(e.morale) u.morale=e.morale;
@@ -359,7 +360,7 @@ class Battle{
       const lost=Math.min(u.men,u.dmg||0); u.dmg=0;
       if(lost>0){ u.menF=(u.menF===undefined?u.men:u.menF)-lost; const nm=Math.max(0,Math.ceil(u.menF-1e-6)); const k=u.men-nm; u.men=nm;
         if(u.side==='ally') this.stats.allyLost+=k; else this.stats.enemyLost+=k;
-        u.morale-=lost/Math.max(30,u.men0)*100*0.9; }
+        u.morale-=lost/Math.max(30*C.menScale,u.men0)*100*0.9; }
       if(u.state!=='rout'){
         if(u.hitBy.length){
           if(u.hitBy.some(a=>BEATS[a.base]===u.base)) u.morale-=1.6*dt;              /* 不利な相性 */
@@ -419,12 +420,12 @@ class Battle{
     else return false;
     this.saihai-=S.cost; this.events.push({k:'saku',kind:k,a}); return true; }
   updRocks(){ for(let i=this.rocks.length-1;i>=0;i--){ const R=this.rocks[i]; if(this.time<R.t) continue; this.rocks.splice(i,1); let hits=0;
-    for(const e of this.live('enemy')){ const d=dist(e.x,e.z,R.x,R.z); if(d>R.r) continue; hits++; const k=1-d/R.r*.5; e.dmg=(e.dmg||0)+(e.men*.13+18)*k; e.morale-=25*k; e.slowUntil=this.time+8; }
+    for(const e of this.live('enemy')){ const d=dist(e.x,e.z,R.x,R.z); if(d>R.r) continue; hits++; const k=1-d/R.r*.5; e.dmg=(e.dmg||0)+(e.men*.13+18*this.C.menScale)*k; e.morale-=25*k; e.slowUntil=this.time+8; }
     this.events.push({k:'rock',x:R.x,z:R.z,r:R.r,hits}); } }
   updGates(dt){ for(const g of this.gates){ if(!(g.until>0)) continue;
     if(g.hp<=0){ g.until=0; this.events.push({k:'gateBroken',g}); continue; }
     if(this.time>=g.until){ g.until=0; g.hp=0; this.events.push({k:'gateOpen',g}); continue; }
-    for(const e of this.live('enemy')) if(e.atGate===g&&!e.engaged) g.hp-=e.men*TYPES[e.type].atk*(TYPES[e.type].melee?.016:.006)*dt; } }
+    for(const e of this.live('enemy')) if(e.atGate===g&&!e.engaged) g.hp-=e.men/this.C.menScale*TYPES[e.type].atk*(TYPES[e.type].melee?.016:.006)*dt; } }
   gateOpenAt(g){ return !(g.until>this.time&&g.hp>0); }
   gateBlock(u,nx,nz){ for(const g of this.gates){ if(this.gateOpenAt(g)) continue; const d0=dist(u.x,u.z,g.pos[0],g.pos[1]),d1=dist(nx,nz,g.pos[0],g.pos[1]); if(d1<g.r+3&&d1<d0) return g; } return null; }
   face(u,t){ if(t) u.heading=Math.atan2(t.x-u.x,t.z-u.z); }
@@ -456,7 +457,7 @@ class Battle{
 const MIN_UNITS=3, MIX={yari:.42,yumi:.33,kiba:.25};
 function capOf(map){ return (map.gates?map.gates.length:1)+(map.minUnits||MIN_UNITS); }
 function formArmy(map,total,opt){
-  opt=opt||{}; const N=capOf(map),rd=v=>Math.max(50,Math.round(v/10)*10);
+  opt=opt||{}; const N=capOf(map),rd=v=>Math.max(50*DEF.menScale,Math.round(v/10)*10);
   let kiba=Math.max(1,Math.round(N*.25)),yari=Math.max(1,Math.round(N*.4)); let yumi=Math.max(1,N-kiba-yari); while(yari+yumi+kiba>N){ if(yari>=yumi&&yari>1) yari--; else if(yumi>1) yumi--; else kiba--; }
   const cnt={yari,yumi,kiba},gen=(map.general&&map.general.name)||'',army=[],used={};
   const NM={yari:['足軽二番組','足軽三番組','足軽四番組','足軽五番組'],yumi:['弓組','弓二番組','弓三番組','弓四番組'],kiba:['騎馬組','騎馬二番組','騎馬三番組']};
@@ -487,6 +488,8 @@ function nextArmy(res,nextMap,opt){
   return {lossRate,left,reinf,bonus,total,N,notes,army:res.army};
 }
 
-const API={TYPES,BEATS,SKILLS,SAKU,DEF,Battle,Grid,buildNav,navPath,projRoute,nextArmy,capOf,formArmy,GROW,MIN_UNITS,baseOf};
+/* 設定データの army（直接遊んだときの軍勢）の総兵数。兵数の倍率をかける */
+const baseArmy=map=>map.army.reduce((t,a)=>t+a.men,0)*DEF.menScale;
+const API={TYPES,BEATS,SKILLS,SAKU,DEF,Battle,Grid,buildNav,navPath,projRoute,nextArmy,capOf,formArmy,GROW,MIN_UNITS,baseOf,baseArmy};
 if(typeof module!=='undefined'&&module.exports) module.exports=API; else root.OshiroBattleSim=API;
 })(typeof window!=='undefined'?window:globalThis);

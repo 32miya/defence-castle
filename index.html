@@ -143,6 +143,8 @@ button,a{font:inherit;color:inherit}
 const {STAGES,HIDDEN,SAVE}=window.OshiroBattleStages;
 const $=id=>document.getElementById(id);
 let sv={}; try{ sv=JSON.parse(localStorage.getItem(SAVE)||'{}'); }catch(e){}
+/* 兵数の倍率（合戦の sim.js の menScale と同じ）。前の版の記録は倍率1なので、表示をそろえる */
+const MEN_SCALE=5; if((sv.menScale||1)!==MEN_SCALE&&sv.army){ const k=MEN_SCALE/(sv.menScale||1); for(const a of sv.army) a.men=Math.round(a.men*k); }
 const NUM='一二三四五六七八九十';
 function show(id){ for(const s of document.querySelectorAll('.scr')) s.hidden=s.id!==id; if(id==='stages') renderStages(); history.replaceState(null,'',id==='title'?location.pathname:'#'+id); }
 function toast(t){ const d=document.createElement('div'); d.className='toast'; d.textContent=t; document.body.appendChild(d); setTimeout(()=>d.style.opacity=0,1800); setTimeout(()=>d.remove(),2400); }

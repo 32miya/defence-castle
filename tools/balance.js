@@ -4,7 +4,7 @@ const S=require('../battle/sim.js');
 const MAP=require('../battle/maps/'+(process.env.MAP||'inuyama')+'.js');
 const MAPID=process.env.MAP||'inuyama'; const ENV=MAPID==='inuyama'?null:require('./env/'+MAPID+'.js'); const T=ENV?{groundH0:ENV.h}:require('./terrain.js');
 function run(mode,seed){ let s=seed||1; Math.random=()=>{ s=(s*16807)%2147483647; return (s-1)/2147483646; };
-  const b=new S.Battle(MAP,{army:S.formArmy(MAP,MAP.army.reduce((t,a)=>t+a.men,0)),h:T.groundH0,block:ENV&&ENV.block,water:ENV&&ENV.water,floor:ENV&&ENV.floor}); const log=[];
+  const b=new S.Battle(MAP,{army:S.formArmy(MAP,S.baseArmy(MAP)),h:T.groundH0,block:ENV&&ENV.block,water:ENV&&ENV.water,floor:ENV&&ENV.floor}); const log=[];
   if(mode==='auto') for(const u of b.live('ally')) b.order(u.id,{kind:'auto'});
   let lastT=0;
   while(b.state==='run'&&b.time<600){ b.step(0.1);

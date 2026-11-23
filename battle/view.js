@@ -208,7 +208,7 @@ function drawSoldiers(battle,alpha,t){
 }
 /* 矢の一斉射ち */
 const arrows=[];
-function volley(a,b){ if(!showFigs) return; const n=Math.min(7,1+Math.ceil(a.men/90)); for(let i=0;i<n&&arrows.length<480;i++){ const ox=(Math.random()-.5)*8,oz=(Math.random()-.5)*8;
+function volley(a,b){ if(!showFigs) return; const n=Math.min(7,1+Math.ceil(a.men/(90*SIM.DEF.menScale))); for(let i=0;i<n&&arrows.length<480;i++){ const ox=(Math.random()-.5)*8,oz=(Math.random()-.5)*8;
   const sx=a.x+ox*.5,sz=a.z+oz*.5,ex=b.x+ox,ez=b.z+oz; const d=Math.hypot(ex-sx,ez-sz); arrows.push({sx,sy:H(sx,sz)+3,sz,ex,ey:H(ex,ez)+.5,ez,t:-Math.random()*.25,T:.55+d/45,arc:d*.22}); } }
 function drawArrows(dt){ let n=0; for(let i=arrows.length-1;i>=0;i--){ const A=arrows[i]; A.t+=dt; if(A.t>A.T){ arrows.splice(i,1); continue; } if(A.t<0) continue;
   const k=A.t/A.T,x=A.sx+(A.ex-A.sx)*k,z=A.sz+(A.ez-A.sz)*k,y=A.sy+(A.ey-A.sy)*k+A.arc*4*k*(1-k);
@@ -502,11 +502,15 @@ function onEvents(b){
 /* ================= 合戦の流れ ================= */
 let B=null,bench=null,sunsetDone=false,simMs=0;
 const STORE='oshiroBattle.v1';
-function loadSave(){ try{ return JSON.parse(localStorage.getItem(STORE)||'{}'); }catch(e){ return {}; } }
+function loadSave(){ let sv; try{ sv=JSON.parse(localStorage.getItem(STORE)||'{}'); }catch(e){ sv={}; }
+  /* 兵数の倍率が変わったら、持ち越しの兵数も同じ倍率にそろえる（前の版の記録は倍率1） */
+  const S=SIM.DEF.menScale,old=sv.menScale||1;
+  if(old!==S){ const k=S/old; if(sv.armyTotal) sv.armyTotal=Math.round(sv.armyTotal*k/10)*10; if(sv.army) for(const a of sv.army){ if(a.men) a.men=Math.round(a.men*k); if(a.men0) a.men0=Math.round(a.men0*k); } sv.menScale=S; try{ localStorage.setItem(STORE,JSON.stringify(sv)); }catch(e){} }
+  return sv; }
 function saveSave(s){ try{ localStorage.setItem(STORE,JSON.stringify(s)); }catch(e){} }
 function clearUnits(){ for(const ic of UI.icons.values()) ic.remove(); UI.icons.clear(); arrows.length=0; }
 /* この合戦の軍勢: 前の城を守り抜いて持ち越した軍勢があればそれを使う（後詰め込み）。なければ設定データの部隊 */
-function armyFor(){ const sv=loadSave(),base=MAP.army.reduce((t,a)=>t+a.men,0);
+function armyFor(){ const sv=loadSave(),base=SIM.baseArmy(MAP);
   /* 前の城から持ち越した兵（後詰め込み）があれば、その総数を「門の数＋3」部隊に自動で分け直す */
   const carried=!!(sv.armyFor===MAP.id&&(sv.armyTotal||(sv.army&&sv.army.length)));
   const total=carried?(sv.armyTotal||sv.army.reduce((t,a)=>t+a.men,0)):base;
@@ -577,14 +581,14 @@ function goStages(){ location.href=GAME+'#stages'; }
 function goTitle(){ location.href=GAME; }
 
 /* ================= 負荷テスト（iPhoneで何部隊まで快適に動くか） ================= */
-const BEN={ally:6,enemy:20,men:400,auto:false,step:0,log:[],res:null};
+const BEN={ally:6,enemy:20,men:2000,auto:false,step:0,log:[],res:null};
 function showBenchSetup(){
   $('obModal').className='obModal';
   const M=$('obModal'); M.hidden=false; M.innerHTML=`<div class="obSheet"><p class="obEra">確認用</p><h1>負荷テスト</h1>
   <p class="obSub">味方・敵の部隊を増やして、この端末で何部隊まで快適に動くかを測ります。兵100人＝兵士1体（1部隊の表示は最大24体）。</p>
   <label class="obRange">味方の部隊 <b id="bvA">${BEN.ally}</b><input id="biA" type="range" min="1" max="40" value="${BEN.ally}"></label>
   <label class="obRange">敵の部隊 <b id="bvE">${BEN.enemy}</b><input id="biE" type="range" min="1" max="120" value="${BEN.enemy}"></label>
-  <label class="obRange">1部隊の兵数 <b id="bvM">${BEN.men}</b><input id="biM" type="range" min="100" max="2400" step="100" value="${BEN.men}"></label>
+  <label class="obRange">1部隊の兵数 <b id="bvM">${BEN.men}</b><input id="biM" type="range" min="500" max="12000" step="500" value="${BEN.men}"></label>
   <p class="obNote">「自動で測る」は、毎秒の描画回数（fps）が下がるまで部隊を少しずつ増やし、快適（45fps以上）と、遊べる（30fps以上）の上限を出します。低電力モードがオンだと30fpsまでしか出ません。</p>
   <div class="obAct"><button class="obBtn obGo" id="bGo">この数で動かす</button><button class="obBtn obGo" id="bAuto">自動で測る</button><button class="obBtn" id="bBack">戻る</button></div></div>`;
   for(const [i,v,k] of [['biA','bvA','ally'],['biE','bvE','enemy'],['biM','bvM','men']]) $(i).oninput=e=>{ BEN[k]=+e.target.value; $(v).textContent=BEN[k]; };
