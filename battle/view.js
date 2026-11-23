@@ -290,12 +290,17 @@ function iconFor(u){ let ic=UI.icons.get(u.id); if(ic) return ic;
   ic.addEventListener('pointerdown',e=>{ e.stopPropagation(); ic._d=[e.clientX,e.clientY]; });
   ic.addEventListener('pointerup',e=>{ e.stopPropagation(); const d=ic._d; if(!d||Math.hypot(e.clientX-d[0],e.clientY-d[1])>14) return; tapUnit(u); });
   $('obIcons').appendChild(ic); UI.icons.set(u.id,ic); return ic; }
+let NEAR=false;
 function updIcons(battle){
+  /* 画面の真ん中で1mが何ピクセルか。カメラを全部いっしょに切りかえる（少し幅をもたせてチラつかないように） */
+  { const ppm=innerHeight/(2*Math.max(1,CAM.dist)*Math.tan(IY.camera.fov*Math.PI/360)); NEAR=showFigs&&(NEAR?ppm>6:ppm>7.5); }
   for(const u of battle.units){ const ic=UI.icons.get(u.id); if(u.state==='dead'||u.state==='gone'){ if(ic){ ic.remove(); UI.icons.delete(u.id); } continue; }
     const x=u.vx!==undefined?u.vx:u.x,z=u.vz!==undefined?u.vz:u.z,p=project(x,H(x,z)+9,z),I=iconFor(u);
     if(!p||p[0]<-40||p[0]>innerWidth+40||p[1]<-40||p[1]>innerHeight+40){ if(I._v!==0){ I.style.display='none'; I._v=0; } continue; }
     if(I._v!==1){ I.style.display=''; I._v=1; }
     I.style.transform=`translate3d(${p[0].toFixed(1)}px,${p[1].toFixed(1)}px,0)`;
+    /* 近づいて兵士の絵（3D）がよく見えるときは、頭上の兵種の絵を消す（数字・士気・命令の印は残す） */
+    if(I._near!==NEAR){ I._near=NEAR; I.classList.toggle('near',NEAR); }
     /* 兵士の絵: 画面の上で進んでいる向きに合わせて、正面・横・背中・斜めを選ぶ */
     { const h=u.heading,q=project(x+Math.sin(h)*6,H(x,z)+9,z+Math.cos(h)*6); let f=0,mir=false;
       if(q){ const dx=q[0]-p[0],dy=q[1]-p[1],a=Math.abs(Math.atan2(dx,dy)); f=a<.5?0:a<1.2?3:a<2.6?1:2; const natLeft=u.base!=='yumi'; mir=f===1||f===3?(natLeft?dx>0:dx<0):false; }

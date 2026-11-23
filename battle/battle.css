@@ -147,6 +147,7 @@ html.obattle:not(.obready) body::after{content:"陣を敷いております…";
 .obU.ally::after,.obU.enemy::after{display:none}
 .obU .spr{position:absolute;left:0;top:0;width:46px;height:66px;background-image:var(--spr);background-size:368px 198px;background-repeat:no-repeat;filter:drop-shadow(0 2px 2px rgba(0,0,0,.55))}
 .obU .spr.mir{transform:scaleX(-1)}
+.obU.near .spr{visibility:hidden}   /* 近いときは3Dの兵士を見せる */
 .obU .n{top:auto;bottom:100%;margin:0 0 1px;font-size:10px;padding:0 4px}
 .obU .m{top:100%;margin-top:2px;width:32px}
 .obU .o{right:-6px;top:6px}
