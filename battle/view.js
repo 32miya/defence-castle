@@ -188,8 +188,8 @@ function drawSoldiers(battle,alpha,t){
     const x=u.px+(u.x-u.px)*alpha,z=u.pz+(u.z-u.pz)*alpha; u.vx=x; u.vz=z;
     if(rn<400){ _m.makeTranslation(x,H(x,z)+.35,z); OB.rings.setMatrixAt(rn,_m); OB.rings.setColorAt(rn,u.state==='rout'?COL.rout:u.boss?COL.boss:COL[u.side]); rn++; }
     if(!showFigs) continue;
-    const S=SOL[u.base]||SOL.yari; const n=Math.min(24,Math.ceil(u.men/per)); if(!n) continue;
-    const rout=u.state==='rout',cols=u.base==='kiba'?3:4,sp=u.base==='kiba'?3.4:2.5,hd=rout?u.heading:u.heading;
+    const S=SOL[u.base]||SOL.yari; const n=Math.min(60,Math.ceil(u.men/per)); if(!n) continue;
+    const rout=u.state==='rout',cols=Math.max(u.base==='kiba'?3:4,Math.round(Math.sqrt(n*1.3))),sp=u.base==='kiba'?3.4:2.5,hd=rout?u.heading:u.heading;
     const ch=Math.cos(hd),sh=Math.sin(hd),col=rout?COL.rout:u.boss?COL.boss:COL[u.side];
     const rows=Math.ceil(n/cols);
     for(let i=0;i<n;i++){ if(S.n>=CAP) break;
