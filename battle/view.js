@@ -100,7 +100,9 @@ function buildBlock(){
     for(let dj=-1;dj<=1;dj++) for(let di=-1;di<=1;di++){ if(Math.abs(di)+Math.abs(dj)>=2) continue; const ii=i+di,jj=j+dj; if(ii<0||jj<0||ii>=W||jj>=Hh) continue; const v=D[jj*W+ii]; if(v===1) return 1; if(v===2) r=2; } return r; };
 }
 /* 木の葉の玉を粗くする（合戦では遠目で見るので、三角形を1/4に） */
+const TREES=[]; let treesCut=false;
 function coarseTrees(){ const cache=new Map(); IY.scene.traverse(o=>{ if(!o.isInstancedMesh) return; const g=o.geometry,P=g.parameters;
+  if(o.count>=60&&/Icosahedron|Cylinder|Cone|Dodecahedron|Octahedron|Sphere/.test(g.type)) TREES.push(o);
   if(g.type!=='IcosahedronGeometry'||!P||!(P.detail>0)) return; let ng=cache.get(P.radius); if(!ng){ ng=new THREE.IcosahedronGeometry(P.radius,0); cache.set(P.radius,ng); } o.geometry=ng; g.dispose(); }); }
 /* 動かない建物・塀・石垣を、材質ごとに1つの形にまとめる（描く回数を減らして、スマホでも軽く） */
 function mergeStatic(){ const t0=performance.now(); IY.scene.updateMatrixWorld(true);
@@ -189,7 +191,7 @@ function drawSoldiers(battle,alpha,t){
     const x=u.px+(u.x-u.px)*alpha,z=u.pz+(u.z-u.pz)*alpha; u.vx=x; u.vz=z;
     if(rn<400){ _m.makeTranslation(x,H(x,z)+.35,z); OB.rings.setMatrixAt(rn,_m); OB.rings.setColorAt(rn,u.state==='rout'?COL.rout:u.boss?COL.boss:COL[u.side]); rn++; }
     if(!showFigs) continue;
-    const S=SOL[u.base]||SOL.yari; const n=Math.min(60,Math.ceil(u.men/per)); if(!n) continue;
+    const S=SOL[u.base]||SOL.yari; let n=Math.min(60,Math.ceil(u.men/per)); if(u._born){ const age=(performance.now()-u._born)/1000; if(age<8) n=Math.min(n,1+Math.floor(age*8)); else u._born=0; } if(!n) continue;
     const rout=u.state==='rout',cols=Math.max(u.base==='kiba'?3:4,Math.round(Math.sqrt(n*1.3))),sp=u.base==='kiba'?3.4:2.5,hd=rout?u.heading:u.heading;
     const ch=Math.cos(hd),sh=Math.sin(hd),col=rout?COL.rout:u.boss?COL.boss:COL[u.side];
     const rows=Math.ceil(n/cols);
@@ -198,7 +200,8 @@ function drawSoldiers(battle,alpha,t){
       let lat=(cI-(cN-1)/2)*sp,fb=((rows-1)/2-r)*sp*.9; const j=(u.id*7.3+i*3.1);
       lat+=Math.sin(j)*.45; fb+=Math.cos(j*1.7)*.45; if(rout){ lat*=1.7; fb*=1.7; }
       if(u.engaged&&!rout) fb+=Math.max(0,Math.sin(t*5+j))*.9;
-      const fx=x+ch*lat+sh*fb,fz=z-sh*lat+ch*fb;
+      let fx=x+ch*lat+sh*fb,fz=z-sh*lat+ch*fb;
+      if(B&&B.grid&&B.grid.blockedAt(fx,fz,'ally')){ for(const k of [.6,.3,0]){ const qx=x+(fx-x)*k,qz=z+(fz-z)*k; if(!B.grid.blockedAt(qx,qz,'ally')||k===0){ fx=qx; fz=qz; break; } } }
       let y=H(fx,fz); if(WY!==null&&IY.isWater(fx,fz)) y=WY-1.1; /* 堀の中は腰まで水につかる */
       if(u.moving||rout) y+=Math.abs(Math.sin(t*(u.base==='kiba'?9:7)+j))*.28;
       const fh=hd+(rout?Math.sin(j)*.6:0)+(u.engaged?Math.sin(t*3+j)*.15:0);
@@ -431,9 +434,19 @@ function drawPreview(){ clearPrev(); const m=UI.mode,p=UI.pend,u=UI.sel; if(m===
 const GMK=[]; MAP.narrow&&MAP.narrow.forEach((g,i)=>{ const m=el('button','obGate',`<b>${g.name||'門'}</b><i><s></s></i>`); m.onclick=e=>{ e.stopPropagation(); if(UI.mode==='gate'&&B&&B.gateOpenAt(B.gates[i])) setPend({gate:i}); }; m.style.display='none'; $('obGates').appendChild(m); GMK.push(m); });
 /* 閉ざした門の扉（3D）: 攻め口の道の向きに直角に、左右2枚の扉が閉まる */
 const DOORS=[]; const doorMat=new THREE.MeshLambertMaterial({color:0x3e2614}),ironMat=new THREE.MeshLambertMaterial({color:0x2a2622});
+/* 敵の道・配置場所のまわり7mの木を切りはらい（兵が木に隠れないように）、残った木から「森」の地図を作る */
+function cutTrees(){ if(!B) return; const K=MAP.keep,c=3,W=Math.ceil((K.x1-K.x0)/c)+1,Hh=Math.ceil((K.z1-K.z0)/c)+1,idx=(x,z)=>{ const i=Math.round((x-K.x0)/c),j=Math.round((z-K.z0)/c); return i<0||j<0||i>=W||j>=Hh?-1:j*W+i; };
+  if(!treesCut){ treesCut=true; const clear=new Uint8Array(W*Hh),mark=(x,z,r)=>{ for(let dz=-r;dz<=r;dz+=c) for(let dx=-r;dx<=r;dx+=c){ if(dx*dx+dz*dz>r*r) continue; const k=idx(x+dx,z+dz); if(k>=0) clear[k]=1; } };
+    for(const id in B.routes){ const P=B.routes[id].pts; for(let i=1;i<P.length;i++){ const [ax,az]=P[i-1],[bx,bz]=P[i],n=Math.ceil(Math.hypot(bx-ax,bz-az)/2); for(let k=0;k<=n;k++) mark(ax+(bx-ax)*k/n,az+(bz-az)*k/n,7); } }
+    for(const sl of MAP.slots) mark(sl.pos[0],sl.pos[1],10);
+    const m4=new THREE.Matrix4(),p=new THREE.Vector3(),z0=new THREE.Matrix4().makeScale(0,0,0); OB.forest=new Uint8Array(W*Hh);
+    for(const o of TREES){ o.updateMatrixWorld(); let changed=false; for(let i=0;i<o.count;i++){ o.getMatrixAt(i,m4); p.setFromMatrixPosition(m4).applyMatrix4(o.matrixWorld); const k=idx(p.x,p.z); if(k<0) continue;
+        if(clear[k]){ o.setMatrixAt(i,z0); changed=true; } else OB.forest[k]=1; } if(changed){ o.instanceMatrix.needsUpdate=true; } }
+    OB.shadowDirty=3; }
+  B.forest=(x,z)=>{ const k=idx(x,z); return k>=0&&OB.forest[k]===1; }; }
 function makeDoors(){ for(const d of DOORS){ IY.scene.remove(d.g); } DOORS.length=0; if(!B) return;
   for(const g of B.gates){ let ang=0,bd=1e9; for(const id in B.routes){ const P=B.routes[id].pts; for(let i=1;i<P.length;i++){ const [ax,az]=P[i-1],[bx,bz]=P[i],dx=bx-ax,dz=bz-az,L2=dx*dx+dz*dz||1,t=Math.max(0,Math.min(1,((g.pos[0]-ax)*dx+(g.pos[1]-az)*dz)/L2)),d=Math.hypot(ax+dx*t-g.pos[0],az+dz*t-g.pos[1]); if(d<bd){ bd=d; ang=Math.atan2(dx,dz); } } }
-    const w=Math.max(4,Math.min(8,g.r*1.4)),h=4.2,G=new THREE.Group(); G.position.set(g.pos[0],H(g.pos[0],g.pos[1]),g.pos[1]); G.rotation.y=ang;
+    const w=g.w||Math.max(4,Math.min(8,g.r*1.4)),h=4.2,G=new THREE.Group(); if(g.dir) ang=Math.atan2(g.dir[0],g.dir[1]); G.position.set(g.pos[0],H(g.pos[0],g.pos[1]),g.pos[1]); G.rotation.y=ang;
     const leaves=[]; for(const sd of [-1,1]){ const hinge=new THREE.Group(); hinge.position.x=sd*w/2; const leaf=new THREE.Mesh(new THREE.BoxGeometry(w/2,h,.35),doorMat); leaf.position.set(-sd*w/4,h/2,0); leaf.castShadow=true; hinge.add(leaf);
       for(const y of [.8,h/2,h-.8]){ const band=new THREE.Mesh(new THREE.BoxGeometry(w/2,.22,.42),ironMat); band.position.set(-sd*w/4,y,0); hinge.add(band); } G.add(hinge); leaves.push({hinge,sd}); }
     G.visible=false; IY.scene.add(G); DOORS.push({g:G,gate:g,leaves,k:0}); } }
@@ -514,6 +527,7 @@ function cutIn(k,label){ if(bench) return; preloadCuts(); const box=$('obCut'); 
   box.classList.remove('on'); void box.offsetWidth; box.classList.add('on'); clearTimeout(box._t); box._t=setTimeout(()=>box.classList.remove('on'),1900); }
 function onEvents(b){
   for(const e of b.events.splice(0)){
+    if(e.k==='spawn'&&e.u.side==='enemy'&&!bench){ e.u._born=performance.now(); dust(e.u.x,e.u.z,5); const ic=iconFor(e.u); ic.classList.add('obNew'); setTimeout(()=>ic.classList.remove('obNew'),1500); }
     if(e.k==='volley'){ volley(e.a,e.b); if(!bench) sfx('arrow',.22,vol()*(e.a.side==='ally'?1:.75)); }
     else if(e.k==='skill'){ sfx(e.u.base==='kiba'?'charge':'taiko'); if(e.u.side==='ally') cutIn(e.u.base==='kiba'?'charge':e.u.base==='yari'?'yari':'fire',B.skillOf(e.u).name+'！'); }
     else if(e.k==='chargeHit'){ sfx('clash',.1,1); sfx('taiko',.2,0,.7); }
@@ -553,7 +567,7 @@ function armyFor(){ const sv=loadSave(),base=SIM.baseArmy(MAP);
 function startBattle(){ preloadCuts();
   Object.assign(CAM,MAP.camera||{});
   clearUnits(); bench=null; sunsetDone=false; IY.applyTime(1); OB.shadowDirty=3;
-  const AR=armyFor(); B=new SIM.Battle(MAP,{army:AR.army,h:H,block:OB.block,water:IY.isWater,floor:IY.floorH,pattern:UI.pattern|0}); if(B.pattern) setTimeout(()=>B&&toast(`<b>敵の陣立て「${B.pattern.name}」</b>${B.pattern.text}`,'big'),2600); makeDoors(); drawRoutes(B);
+  const AR=armyFor(); B=new SIM.Battle(MAP,{army:AR.army,h:H,block:OB.block,water:IY.isWater,floor:IY.floorH,pattern:UI.pattern|0}); cutTrees(); if(B.pattern) setTimeout(()=>B&&toast(`<b>敵の陣立て「${B.pattern.name}」</b>${B.pattern.text}`,'big'),2600); makeDoors(); drawRoutes(B);
   buildCards(B); buildLines(); setLines(0); $('obModal').hidden=true; $('obCards').hidden=false; $('obLines').hidden=false; $('obHud').hidden=!QS.has('hud');
   UI.pauseManual=false; finish(); toast(`<b>${MAP.title}</b>${MAP.goal}！`,'big'); $('obSnd').textContent=SND.on?'🔊':'🔇'; sfx('horagai'); sfx('taiko',0,1.5);
 }
@@ -566,7 +580,8 @@ function showBrief(){
   Object.assign(CAM,{x:-4,z:-95,dist:215});
   const cap=SIM.capOf(MAP),E=MAP.enemy,cnt={};
   /* 敵の攻め方（陣立て）: 6通りから毎回ひとつ。「もう一度」は同じ攻め方 */
-  UI.pattern=Math.floor(Math.random()*SIM.PATTERNS.length); const PT=SIM.patternsOf(MAP)[UI.pattern];
+  { const sv=loadSave(); sv.pat=sv.pat||{}; if(!(sv.pat[MAP.id]>=0)){ sv.pat[MAP.id]=Math.floor(Math.random()*SIM.PATTERNS.length); saveSave(sv); } UI.pattern=sv.pat[MAP.id]; }
+  const PT=SIM.patternsOf(MAP)[UI.pattern];
   for(const w of PT.waves) for(const u of w.units) cnt[u.type]=(cnt[u.type]||0)+u.men;
   const tot=Object.values(cnt).reduce((a,b)=>a+b,0);
   const mix=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]).map(k=>`<span><i class="tic t-${k}">${G(k)}</i>${T[k].name} ${Math.round(cnt[k]/tot*100)}%</span>`).join('');
@@ -595,7 +610,7 @@ function showBrief(){
 function showResult(){
   $('obModal').className='obModal';
   const r=B.result(),nx=SIM.nextArmy(r,null),win=r.state==='win',lossP=Math.round(nx.lossRate*100);
-  const sv=loadSave(); sv[MAP.id]=Object.assign(sv[MAP.id]||{},{played:(sv[MAP.id]&&sv[MAP.id].played||0)+1}); if(win){ sv[MAP.id].cleared=true; sv[MAP.id].bestLoss=Math.min(sv[MAP.id].bestLoss===undefined?100:sv[MAP.id].bestLoss,lossP); sv.army=nx.army.map(a=>({id:a.id,gen:a.gen,name:a.name,type:a.type,men:a.men})); sv.armyTotal=nx.total; sv.next=MAP.next&&MAP.next.castle; sv.armyFor=MAP.next&&MAP.next.id; } saveSave(sv);
+  const sv=loadSave(); if(win&&sv.pat) delete sv.pat[MAP.id]; /* 守り抜いたら、次に来たときは別の攻め方 */ sv[MAP.id]=Object.assign(sv[MAP.id]||{},{played:(sv[MAP.id]&&sv[MAP.id].played||0)+1}); if(win){ sv[MAP.id].cleared=true; sv[MAP.id].bestLoss=Math.min(sv[MAP.id].bestLoss===undefined?100:sv[MAP.id].bestLoss,lossP); sv.army=nx.army.map(a=>({id:a.id,gen:a.gen,name:a.name,type:a.type,men:a.men})); sv.armyTotal=nx.total; sv.next=MAP.next&&MAP.next.castle; sv.armyFor=MAP.next&&MAP.next.id; } saveSave(sv);
   if(win) IY.applyTime(MAP.goal.includes('日没')?3:2); OB.shadowDirty=3;
   const M=$('obModal'); M.hidden=false; $('obOrder').hidden=true; $('obPrompt').hidden=true;
   M.className='obModal obResM'; const IMG=GAME+'battle/img/';

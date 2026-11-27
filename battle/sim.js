@@ -145,7 +145,7 @@ class Battle{
     this.map=map; this.C=Object.assign({},DEF,map.rules||{},opt.rules||{});
     this.h=opt.h||(()=>0);
     this.time=0; this.acc=0; this.state='run'; this.events=[]; this.units=[]; this.nextId=1;
-    this.duration=opt.duration||map.duration||480;
+    this.duration=opt.duration||map.duration||480; this.forest=opt.forest||null;
     this.enemyScale=(opt.enemyScale||(map.enemy&&map.enemy.scale)||1)*(1+(this.C.stageGrow||0)*((map.stage||1)-1));
     this.routes={}; for(const r of map.routes) this.routes[r.id]=prepRoute(Object.assign({},r));
     this.slots=map.slots.map(s=>Object.assign({},s));
@@ -165,13 +165,17 @@ class Battle{
     this.waves=(opt.waves||this.pattern.waves).map((w,i)=>Object.assign({i,spawned:false},w));
     this.waveNow=-1; this.spawnQ=[];
     this.skill=(map.general&&map.general.skill)||null;
-    this.bossSkill=(map.enemy.boss&&map.enemy.boss.skill)||null;
+    this.bossSkill0=(map.enemy.boss&&map.enemy.boss.skill)||null; this.bossSkill=null;   /* 大将の特技は、大将が戦場に出てから討たれる・敗走するまで */
     this.stats={allyMen0:0,allyLost:0,enemyMen:0,enemyLost:0,enemyRouted:0};
     /* 采配（策に使う） */
     this.saihai=this.C.saihaiStart; this.rocks=[];
     this.gates=(map.narrow||[]).map((g,i)=>({i,name:g.name||'門',pos:g.pos,r:g.r||7,until:0,hp:0}));
     /* 門の向き（門を通る攻め口の道の向き）。閉じた門の内と外を分けるのに使う */
-    for(const g of this.gates){ let bd=1e9; g.dir=[0,1]; for(const id in this.routes){ const P=this.routes[id].pts; for(let i=1;i<P.length;i++){ const [ax,az]=P[i-1],[bx,bz]=P[i],dx=bx-ax,dz=bz-az,L=Math.hypot(dx,dz)||1,t=clamp(((g.pos[0]-ax)*dx+(g.pos[1]-az)*dz)/(L*L),0,1),d=dist(ax+dx*t,az+dz*t,g.pos[0],g.pos[1]); if(d<bd){ bd=d; g.dir=[dx/L,dz/L]; } } } }
+    for(const g of this.gates){ let bd=1e9; g.dir=[0,1]; g.w=Math.max(4,Math.min(8,g.r*1.4)); for(const id in this.routes){ const P=this.routes[id].pts; for(let i=1;i<P.length;i++){ const [ax,az]=P[i-1],[bx,bz]=P[i],dx=bx-ax,dz=bz-az,L=Math.hypot(dx,dz)||1,t=clamp(((g.pos[0]-ax)*dx+(g.pos[1]-az)*dz)/(L*L),0,1),d=dist(ax+dx*t,az+dz*t,g.pos[0],g.pos[1]); if(d<bd){ bd=d; g.dir=[dx/L,dz/L]; } } }
+      if(this.grid&&opt.block){ const G=this.grid,[dx,dz]=g.dir,free=(x,z)=>{ const k=G.idx(x,z); return k>=0&&!G.blk[k]; };
+        let best=null; for(let s0=-12;s0<=12;s0+=.75){ const cx=g.pos[0]+dx*s0,cz=g.pos[1]+dz*s0; if(!free(cx,cz)) continue; let l=0,r=0; while(l<12&&free(cx-dz*(l+.75),cz+dx*(l+.75))) l+=.75; while(r<12&&free(cx+dz*(r+.75),cz-dx*(r+.75))) r+=.75;
+          const w=l+r+.75; if(w<11&&(!best||w<best.w-.4||(Math.abs(w-best.w)<=.4&&Math.abs(s0)<Math.abs(best.s)))) best={w,s:s0,x:cx+(r-l)/2*dz,z:cz-(r-l)/2*dx}; }
+        if(best){ g.pos=[best.x,best.z]; g.w=Math.max(4,Math.min(9,best.w)); } } }
     for(const a of (opt.army||[])) this.addAlly(a);
   }
   /* 味方の部隊を置く */
@@ -190,7 +194,7 @@ class Battle{
     const r=(baseOf(e.type)==='kiba'&&this.routes[e.route+'~k'])||this.routes[e.route],p0=r.pts[0],p1=r.pts[1],ang=Math.atan2(p1[0]-p0[0],p1[1]-p0[1]);
     const u=this.mkUnit('enemy',e.type,Math.round(e.men*this.enemyScale*this.C.menScale/10)*10,p0[0],p0[1],e.name||TYPES[e.type].name);
     u.route=r; u.ri=1; u.s=0; u.heading=ang; u.boss=!!e.boss; u.wave=wave; u.gen=e.gen||'';
-    if(u.boss&&this.bossSkill&&this.bossSkill.kind==='kishu'){ u.speedMul=1.15; }
+    if(u.boss){ this.bossSkill=this.bossSkill0; if(this.bossSkill&&this.bossSkill.kind==='kishu') u.speedMul=1.15; }
     if(e.morale) u.morale=e.morale;
     this.stats.enemyMen+=u.men; this.events.push({k:'spawn',u});
     if(u.boss) this.events.push({k:'boss',u});
@@ -252,10 +256,10 @@ class Battle{
   inNarrow(u){ for(const g of this.map.narrow||[]) if(dist(g.pos[0],g.pos[1],u.x,u.z)<(g.r||7)) return true; return false; }
 
   thinkAlly(u,E,A,dt){
-    if(u.state==='rout'){ u.routT-=dt; if(u.routT<=0){ u.state='idle'; u.morale=this.C.rallyMorale; u.order={kind:'hold',x:u.x,z:u.z,slot:this.slotAt(u)}; u.path=null; this.events.push({k:'rally',u}); } return; }
+    if(u.state==='rout'){ u.routT-=dt; const home=u.order&&u.order.slot,at=!home||dist(u.x,u.z,home.pos[0],home.pos[1])<6||!u.path||!u.path.length; if(u.routT<=0&&(at||u.routT<-15)){ u.state='idle'; u.morale=this.C.rallyMorale; u.order={kind:'hold',x:u.x,z:u.z,slot:this.slotAt(u)}; u.path=null; this.events.push({k:'rally',u}); } return; }
     const T=TYPES[u.type],o=u.order||{kind:'hold',x:u.x,z:u.z};
     const range=this.rangeOf(u);
-    const nearestE=(x,z,r,pref)=>{ let b=null,bd=r; for(const e of E){ if(e.state==='rout'&&T.melee&&dist(e.x,e.z,x,z)>12) continue; if(T.melee&&this.walled(u,e)) continue; let d=dist(e.x,e.z,u.x,u.z); if(dist(e.x,e.z,x,z)>r) continue; if(pref&&BEATS[u.base]===e.base) d-=12; if(pref&&BEATS[e.base]===u.base) d+=12; if(d<bd){ bd=d; b=e; } } return b; };
+    const nearestE=(x,z,r,pref,sight)=>{ let b=null,bd=r; for(const e of E){ if(sight&&!this.los(u,e)) continue; if(e.state==='rout'&&T.melee&&dist(e.x,e.z,x,z)>12) continue; if(T.melee&&this.walled(u,e)) continue; let d=dist(e.x,e.z,u.x,u.z); if(dist(e.x,e.z,x,z)>r) continue; if(pref&&BEATS[u.base]===e.base) d-=12; if(pref&&BEATS[e.base]===u.base) d+=12; if(d<bd){ bd=d; b=e; } } return b; };
     let anchor=null; /* 守る場所 */
     if(o.kind==='hold') anchor=[o.x,o.z];
     else if(o.kind==='reinforce'){ const t=o.target; if(!t||t.state==='dead'||t.state==='gone'){ u.order={kind:'hold',x:u.x,z:u.z}; return; } anchor=[t.x+Math.sin(t.heading+Math.PI/2)*6,t.z+Math.cos(t.heading+Math.PI/2)*6]; }
@@ -266,7 +270,7 @@ class Battle{
     const leash=T.melee?(u.type==='kiba'?34:24):range;
     let t=(o.kind==='auto'&&u.autoTarget&&u.autoTarget.state!=='dead'&&u.autoTarget.state!=='gone'&&dist(u.autoTarget.x,u.autoTarget.z,anchor[0],anchor[1])<55)?u.autoTarget:nearestE(anchor[0],anchor[1],T.melee?leash:range,true);
     if(!T.melee){ /* 弓: 動かずに射る（射程の外の敵は、任せるときだけ寄る） */
-      const inR=nearestE(u.x,u.z,range,true); u.target=inR;
+      const inR=nearestE(u.x,u.z,range,true,true); u.target=inR;
       const ad=dist(u.x,u.z,anchor[0],anchor[1]);
       u.moveFire=false;
       if(!inR&&o.kind==='auto'&&t){ if(this.stale(u,t.x,t.z,10)) this.goTo(u,t.x,t.z); }
@@ -323,7 +327,7 @@ class Battle{
       if(chase){ u.target=chase; if(u.mode!=='chase'||this.stale(u,chase.x,chase.z,4)) this.goTo(u,chase.x,chase.z); u.mode='chase'; return; }
     } else {
       /* 弓: 射程に入ったら止まって射る。足軽を優先 */
-      let tg=null,td=range; for(const a of A){ if(a.state==='rout') continue; let d=dist(u.x,u.z,a.x,a.z); if(d>range) continue; if(BEATS[u.base]===a.base) d-=10; if(d<td){ td=d; tg=a; } }
+      let tg=null,td=range; for(const a of A){ if(a.state==='rout') continue; let d=dist(u.x,u.z,a.x,a.z); if(d>range||!this.los(u,a)) continue; if(BEATS[u.base]===a.base) d-=10; if(d<td){ td=d; tg=a; } }
       if(tg){ u.target=tg; u.path=null; return; }
     }
     /* ルートを進む（道から外れていたら近い先の点へ戻る） */
@@ -337,9 +341,11 @@ class Battle{
     for(const u of all){
       if(u.state==='rout'||!u.target) continue; const t=u.target; if(t.state==='dead'||t.state==='gone'){ u.target=null; continue; }
       const T=TYPES[u.type],d=dist(u.x,u.z,t.x,t.z);
-      let reach=T.melee?C.contact+.5:this.rangeOf(u); if(d>reach) continue; if(T.melee&&this.walled(u,t)) continue;
+      let reach=T.melee?C.contact+.5:this.rangeOf(u); if(d>reach) continue; if(T.melee&&this.walled(u,t)) continue; if(!T.melee&&d>C.contact+.5&&!this.los(u,t)) continue;
       u.engaged=true; if(d<=C.contact+.5) t.engaged=true;
       let m=1; if(BEATS[u.base]===t.base) m=C.adv; else if(BEATS[t.base]===u.base) m=C.dis;
+      /* 斬り合いの間合い: 弓は弓を捨てて刀で戦うので弱い。足軽・騎馬は詰め寄った弓に強い */
+      const close=d<=C.contact+.5; if(close&&!T.melee){ m=Math.min(m,1)*.5; } else if(close&&T.melee&&!TYPES[t.type].melee){ m=Math.max(m,1.2); }
       let f=T.atk*m*(0.55+0.45*u.morale/100);
       if(u.side==='ally') f*=C.defAtk;
       const sui=this.bossSkill&&this.bossSkill.kind==='suigun';
@@ -390,7 +396,7 @@ class Battle{
     }
   }
   flanked(u){ if(u.hitBy.length<2) return false; for(let i=0;i<u.hitBy.length;i++) for(let j=i+1;j<u.hitBy.length;j++){ const a=u.hitBy[i],b=u.hitBy[j]; const a1=Math.atan2(a.x-u.x,a.z-u.z),a2=Math.atan2(b.x-u.x,b.z-u.z); let d=Math.abs(a1-a2); if(d>Math.PI) d=2*Math.PI-d; if(d>Math.PI*.55) return true; } return false; }
-  bossDown(u){ if(this.bossFell) return; this.bossFell=true; this.events.push({k:'bossdown',u}); for(const e of this.live('enemy')) if(e!==u) e.morale-=30; }
+  bossDown(u){ if(this.bossFell) return; this.bossFell=true; this.bossSkill=null; this.events.push({k:'bossdown',u}); for(const e of this.live('enemy')) if(e!==u) e.morale-=30; }
   moveAll(all,dt){
     for(const u of all){
       u.moving=false; if(u.state==='dead'||u.state==='gone') continue;
@@ -400,6 +406,7 @@ class Battle{
       if(!u.path||!u.path.length){ if(u.target) this.face(u,u.target); continue; }
       const T=TYPES[u.type]; let sp=T.speed*(u.speedMul||1)*(u.state==='rout'?1.25:1)*(u.side==='enemy'?this.C.enemySpeed:1);
       if(u.type==='kiba'&&this.inNarrow(u)) sp*=.6;
+      if(this.forest&&this.forest(u.x,u.z)) sp*=u.type==='kiba'?.5:.7;   /* 森の中は歩きにくい（騎馬はなおさら） */
       if(this.buff(u,'kiba')) sp*=1.4; if(u.slowUntil>this.time) sp*=.45;
       if(this.grid){ const w=this.grid.waterAt(u.x,u.z),c=this.grid.wallAt(u.x,u.z); if(w&&!(u.side==='enemy'&&this.bossSkill&&this.bossSkill.kind==='suigun')) sp*=this.C.waterSpeed; if(c) sp*=this.C.wallSpeed;
         if(u.side==='enemy'&&w&&!u.wet){ u.wet=true; this.events.push({k:'moat',u}); } if(u.side==='enemy'&&c&&!u.climb){ u.climb=true; this.events.push({k:'climb',u}); } }
@@ -410,7 +417,7 @@ class Battle{
         const slope=Math.abs(nh-u.y)/st; const f=clamp(1-Math.max(0,slope-.35)*1.4,.3,1);
         const adv=st*f; const ax=u.x+(tx-u.x)/d*adv,az=u.z+(tz-u.z)/d*adv;
         if(this.grid&&this.grid.blockedAt(ax,az,this.mvSide(u))&&!this.grid.blockedAt(u.x,u.z,this.mvSide(u))) break;
-        if(u.side==='enemy'&&u.state!=='rout'){ const g=this.gateBlock(u,ax,az); if(g){ u.atGate=g; this.face(u,{x:g.pos[0],z:g.pos[1]}); break; } }
+        if(u.state!=='rout'){ const g=this.gateBlock(u,ax,az); if(g){ if(u.side==='enemy') u.atGate=g; this.face(u,{x:g.pos[0],z:g.pos[1]}); break; } }
         u.heading=Math.atan2(tx-u.x,tz-u.z); u.x=ax; u.z=az; u.y=this.h(ax,az); left-=st; u.moving=true; }
     }
   }
@@ -448,6 +455,12 @@ class Battle{
     if(g.hp<=0){ g.until=0; this.events.push({k:'gateBroken',g}); continue; }
     if(this.time>=g.until){ g.until=0; g.hp=0; this.events.push({k:'gateOpen',g}); continue; }
     for(const e of this.live('enemy')) if(e.atGate===g&&!e.engaged) g.hp-=e.men/this.C.menScale*TYPES[e.type].atk*(TYPES[e.type].melee?.016:.006)*dt; } }
+  /* 見通し: 弓の矢は山なりなので塀は越えるが、建物（天守・櫓・御殿）の向こうや尾根の裏には届かない。結果は0.5秒おぼえておく */
+  los(a,b){ const key=a.id*4096+b.id,c=this._los||(this._los=new Map()),hit=c.get(key); if(hit&&hit.t>this.time) return hit.ok;
+    let ok=true; const L=dist(a.x,a.z,b.x,b.z),n=Math.floor(L/1.5),ya=this.h(a.x,a.z)+(this.slotAt(a)?6:3),yb=this.h(b.x,b.z)+1.5,g=this.grid;
+    for(let k=2;k<n-1&&ok;k++){ const f=k/n,x=a.x+(b.x-a.x)*f,z=a.z+(b.z-a.z)*f; const top=ya+(yb-ya)*f+Math.sin(f*Math.PI)*L*.12;   /* 山なりの矢の高さ */
+      if(this.h(x,z)>top+1) ok=false; else if(g){ const i=g.idx(x,z); if(i>=0&&g.blk[i]===1&&f>.12&&f<.88&&this.h(x,z)+9>top) ok=false; } }
+    c.set(key,{ok,t:this.time+.5}); if(c.size>4000) c.clear(); return ok; }
   gateOpenAt(g){ return !(g.until>this.time&&g.hp>0); }
   /* 閉じた門をはさんで向かい合っているか（槍や刀は届かない。弓と落石・火矢は届く） */
   walled(a,b){ for(const g of this.gates){ if(this.gateOpenAt(g)) continue; const R=g.r+10;
