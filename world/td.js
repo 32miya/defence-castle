@@ -51,7 +51,7 @@ const EN={
   dragon:  {name:'黒竜',       hp:6000,spd:3,   armor:6,gold:250,core:12,size:4.2,air:true,alt:8,boss:true}
 };
 /* 波: [敵, 数, ルート(g0,g1=地上の1・2本目, air=空), 間隔(秒), 開始の遅れ(秒)] */
-const WAVES=MAP.waves||[
+const WAVES=(MAP.waves||[
   [['goblin',10,'g0',1.1]],
   [['goblin',8,'g1',1],['goblin',6,'g0',1.2,4]],
   [['wolf',8,'g1',.9],['goblin',10,'g0',1,3]],
@@ -62,9 +62,11 @@ const WAVES=MAP.waves||[
   [['wyvern',3,'air',4],['skeleton',12,'g0',1],['troll',2,'g1',5,6]],
   [['orc',10,'g0',1.1],['orc',10,'g1',1.1,2],['bat',12,'air',.8,4],['troll',3,'g0',4,12]],
   [['ogre',1,'g0',1,0],['goblin',16,'g0',.6,2],['orc',8,'g1',1.2],['wyvern',2,'air',5,10],['wolf',10,'g1',.7,14]]
-];
-const HP_MUL=1+.22*STAGE_I, CNT_MUL=1+.1*STAGE_I;
-const NEXT_WAIT=35, METEOR={cd:40,r:9,dmg:200*HP_MUL};
+]).map(w=>w.map(q=>q.slice()));
+/* ステージが進むほど強く多く（そのぶん金貨も増える）。名所ごとに空の敵の多さ（airMul）と大将（boss）を変えられる */
+const HP_MUL=1+.09*STAGE_I, CNT_MUL=1+.04*STAGE_I, GOLD_MUL=1+.06*STAGE_I, AIR_MUL=MAP.airMul||1;
+if(MAP.boss==='dragon'){ const L=WAVES[WAVES.length-1]; const i=L.findIndex(q=>q[0]==='ogre'); if(i>=0) L[i]=['dragon',1,'air',1,0]; }
+const NEXT_WAIT=Math.round(clamp(Math.max(...Object.values(MAP.routes).filter(r=>!r.air).map(r=>{ let L=0; for(let i=1;i<r.pts.length;i++) L+=Math.hypot(r.pts[i][0]-r.pts[i-1][0],r.pts[i][1]-r.pts[i-1][1]); return L; }))/6*.65,32,55)), METEOR={cd:40,r:9,dmg:200*HP_MUL};
 
 /* ================= 道 ================= */
 const ROUTES={};
@@ -86,7 +88,7 @@ function routePos(r,s,e){ const P=r.pts,L=r.L; let k=e.k||0; while(k<L.length-2&
 function nearestS(r,x,z){ let best=1e9,bs=0; for(let s=0;s<=r.len;s+=.5){ const p=rawAt(r,s),d=Math.hypot(p[0]-x,p[1]-z); if(d<best){ best=d; bs=s; } } return [bs,best]; }
 
 /* ================= 状態 ================= */
-const G={gold:MAP.gold||250,lives:MAP.lives||20,maxLives:MAP.lives||20,wave:-1,queue:[],t:0,speed:1,paused:false,started:false,over:false,
+const G={gold:MAP.gold||Math.round(300+30*STAGE_I+100*Math.max(0,(MAP.ground||[]).length-1)),lives:MAP.lives||20,maxLives:MAP.lives||20,wave:-1,queue:[],t:0,speed:1,paused:false,started:false,over:false,
   nextT:-1,spawnDone:true,met:0,metArm:false,kills:0,leaked:0,spent:0};
 const enemies=[], towers=[], shots=[], fx=[];
 const SLOTS=MAP.slots.map(([x,z],i)=>({i,x,z,y:HOST.hy(x,z),wall:false,tower:null}));
@@ -98,20 +100,25 @@ for(const [x,z] of MAP.walls||[]){ const on=[]; let y=0;
 function lighten(){
   const t0=performance.now(),F=MAP.field,inF=(x,z)=>x>F.x0&&x<F.x1&&z>F.z0&&z<F.z1;
   const keep=new Set(HOST.keep||[]); let tri0=0,tri1=0,hid=0;
-  for(const o of HOST.hide||[]) o.visible=false;
+  for(const o of (typeof HOST.hide==='function'?HOST.hide():HOST.hide)||[]) o.visible=false;
   scene.updateMatrixWorld(true);
   const uses=new Map(); scene.traverse(o=>{ if(o.geometry) uses.set(o.geometry,(uses.get(o.geometry)||0)+1); });
+  scene.traverse(o=>{ if(o.isSprite&&!keep.has(o)&&!o.userData.td){ o.visible=false; hid++; } });   /* 札・霧の粒・太陽の光など（上から見ると邪魔で、描く回数も多い） */
   const todo=[]; scene.traverse(o=>{ if(o.userData.td||keep.has(o)||!o.geometry||!o.visible) return; if(o.isMesh||o.isInstancedMesh||o.isPoints) todo.push(o); });
   for(const o of todo){
     const g=o.geometry; if(!g.attributes||!g.attributes.position) continue;
     if(o.isInstancedMesh){ compactInstances(o,inF); continue; }
     if(!g.boundingBox) g.computeBoundingBox(); const bb=g.boundingBox.clone().applyMatrix4(o.matrixWorld);
     if(bb.max.x<F.x0||bb.min.x>F.x1||bb.max.z<F.z0||bb.min.z>F.z1){ if(bb.max.x-bb.min.x<4000&&bb.max.z-bb.min.z<4000){ o.visible=false; hid++; } continue; }
+    /* 屋根の下（MAP.hideIn の箱）の小さな家具は上から見えないので捨てる */
+    if(MAP.hideIn&&Math.max(bb.max.x-bb.min.x,bb.max.z-bb.min.z)<12&&MAP.hideIn.some(h=>bb.min.x>=h.x0&&bb.max.x<=h.x1&&bb.min.z>=h.z0&&bb.max.z<=h.z1&&bb.max.y<=(h.ymax||99))){ o.visible=false; hid++; continue; }
     if(bb.min.x>=F.x0&&bb.max.x<=F.x1&&bb.min.z>=F.z0&&bb.max.z<=F.z1) continue;
+    if(bb.max.x-bb.min.x>700||bb.max.z-bb.min.z>700) continue;   /* 地面・水・山などの大きなものは残す */
     if(uses.get(g)>1||o.isPoints) continue;
     const r=filterTris(o,inF); tri0+=r[0]; tri1+=r[1];
   }
-  const B=MAP.cam.bounds,sun=HOST.sun,cx=(B.x0+B.x1)/2,cz=(B.z0+B.z1)/2,ext=Math.max(B.x1-B.x0,B.z1-B.z0)*.62,sz=isTouch?1536:2048;
+  const B=MAP.cam.bounds,sun=HOST.sun; if(!sun) return {ms:Math.round(performance.now()-t0),hidden:hid,trisCut:tri0-tri1};
+  const cx=(B.x0+B.x1)/2,cz=(B.z0+B.z1)/2,ext=Math.max(B.x1-B.x0,B.z1-B.z0)*.62,sz=isTouch?1536:2048;
   const d=window.SUND||{x:.4,y:.8,z:.3}; sun.position.set(cx+d.x*500,d.y*500,cz+d.z*500); sun.target.position.set(cx,0,cz); sun.target.updateMatrixWorld();
   sun.shadow.mapSize.set(sz,sz); const c=sun.shadow.camera; c.left=-ext; c.right=ext; c.top=ext; c.bottom=-ext; c.near=1; c.far=1400; c.updateProjectionMatrix();
   if(sun.shadow.map){ sun.shadow.map.dispose(); sun.shadow.map=null; }
@@ -290,14 +297,14 @@ let AC=null; function snd(kind){ if(!OPT.sound||!AC) return; try{ const t=AC.cur
 let sndT={}; const sndLim=(k,gap)=>{ const n=performance.now(); if((sndT[k]||0)>n) return; sndT[k]=n+gap; snd(k); };
 
 /* ================= 敵 ================= */
-function spawn(type,routeKey){ const d=EN[type],r=routeKey==='air'?AIR:routeKey==='g1'?(GROUND[1]||GROUND[0]):routeKey==='g0'?GROUND[0]:ROUTES[routeKey]; if(!r) return;
+function spawn(type,routeKey){ const d=EN[type],m=/^g(\d)$/.exec(routeKey),r=routeKey==='air'?(AIR||GROUND[0]):m?(GROUND[+m[1]]||GROUND[GROUND.length-1]):ROUTES[routeKey]; if(!r) return;
   const hp=Math.round(d.hp*HP_MUL*(1+.06*Math.max(0,G.wave)));
   const e={t:type,d,r,s:0,k:0,off:r.air?rand(-3,3):rand(-1.3,1.3)*(d.boss?0:1),hp,max:hp,slow:0,slowT:0,hit:0,ph:Math.random()*9,q:rand(0,2.5),x:0,y:0,z:0,hd:0,dead:false,atkT:0};
   routePos(r,0,e); enemies.push(e); return e; }
 function hurt(e,dmg,kind){ if(e.dead) return; const d=e.d; let v=dmg;
   if(kind!=='magic'&&kind!=='meteor') v=Math.max(dmg*.25,dmg-d.armor);
   if(kind==='arrow'&&d.arrowRes) v*=d.arrowRes;
-  e.hp-=v; e.hit=.12; if(e.hp<=0){ e.dead=true; G.gold+=d.gold; G.kills++; popGold(e,d.gold); addFx(e.x,e.y+.5,e.z,'#ffe08a',.35,1,d.boss?9:3); sndLim('coin',60); if(d.boss) banner(d.name+'を倒した！'); } }
+  e.hp-=v; e.hit=.12; if(e.hp<=0){ e.dead=true; const gg=Math.round(d.gold*GOLD_MUL); G.gold+=gg; G.kills++; popGold(e,gg); addFx(e.x,e.y+.5,e.z,'#ffe08a',.35,1,d.boss?9:3); sndLim('coin',60); if(d.boss) banner(d.name+'を倒した！'); } }
 function addFx(x,y,z,col,dur,r0,r1,puff){ if(fx.length>58) fx.shift(); fx.push({x,y,z,col:new THREE.Color(col),t:0,dur,r0,r1,puff:!!puff}); }
 
 /* ================= 1歩すすめる ================= */
@@ -316,7 +323,7 @@ function step(dt){
     if(!e.r.air){ for(const w of walls){ for(const o of w.slot.on){ if(o.r!==e.r.key) continue; const gap=o.s-e.s; if(gap>-.5&&gap<1.6+d.size*1.1+e.q){ stop=true; e.atkT-=dt; if(e.atkT<=0){ e.atkT=1; w.hp-=d.atk*(1+.06*Math.max(0,G.wave))*HP_MUL; w.hit=.15; if(w.hp<=0) wallDown(w); } } } } }
     if(!stop) e.s+=v*dt;
     routePos(e.r,e.s,e);
-    if(e.s>=e.r.len-.3){ e.dead=true; G.lives-=d.core; G.leaked++; coreHit(d.core); }
+    if(e.s>=e.r.len-.3){ e.dead=true; G.lives-=d.core; G.leaked++; (G.leakBy=G.leakBy||{})[e.t+'@'+e.r.key+'@w'+G.wave]=((G.leakBy||{})[e.t+'@'+e.r.key+'@w'+G.wave]||0)+d.core; coreHit(d.core); }
   }
   for(let i=enemies.length-1;i>=0;i--) if(enemies[i].dead) enemies.splice(i,1);
   /* 塔が撃つ */
@@ -356,12 +363,13 @@ let coreFlash=0, shake=0;
 function callWave(early){ if(G.over||G.wave>=WAVES.length-1) return; if(early&&G.nextT>0&&G.wave>=0){ const b=Math.round(G.nextT*1.6); if(b>0){ G.gold+=b; toast(`早めに呼んだ：+${b} ゴールド`); } }
   if(G.wave>=0&&G.spawnDone){ const bonus=25+G.wave*6; G.gold+=bonus; }
   G.wave++; G.nextT=-1; G.spawnDone=false; G.started=true;
-  for(const [type,n,route,gap,delay] of WAVES[G.wave]){ const cnt=EN[type].boss?n:Math.round(n*CNT_MUL); for(let i=0;i<cnt;i++) G.queue.push({type,route,at:G.t+(delay||0)+i*gap}); }
+  for(const [type,n,route,gap,delay] of WAVES[G.wave]){ const cnt=waveCount(type,n,route); for(let i=0;i<cnt;i++) G.queue.push({type,route:route==='g1'&&GROUND.length>2?'g'+(1+i%(GROUND.length-1)):route,at:G.t+(delay||0)+i*gap*(route==='air'&&AIR_MUL>1?1/AIR_MUL:1)}); }
   if(!G.queue.length) G.spawnDone=true;
   const w=WAVES[G.wave],boss=w.find(q=>EN[q[0]].boss);
   banner(`第${G.wave+1}波`,boss?EN[boss[0]].name+'が来る！':waveText(G.wave)); snd('wave'); updUI(true); }
-function routeName(k){ const r=k==='air'?AIR:k==='g1'?(GROUND[1]||GROUND[0]):k==='g0'?GROUND[0]:ROUTES[k]; return r?r.name:''; }
-function waveText(i){ const w=WAVES[i]; if(!w) return ''; return w.map(([t,n,r])=>`${EN[t].name}×${EN[t].boss?n:Math.round(n*CNT_MUL)}（${routeName(r)}）`).join('・'); }
+function waveCount(t,n,r){ return EN[t].boss?n:Math.round(n*CNT_MUL*(r==='air'?AIR_MUL:1)); }
+function routeName(k){ if(k==='g1'&&GROUND.length>2) return GROUND.slice(1).map(r=>r.name).join('・'); const r=k==='air'?AIR:k==='g1'?(GROUND[1]||GROUND[0]):k==='g0'?GROUND[0]:ROUTES[k]; return r?r.name:''; }
+function waveText(i){ const w=WAVES[i]; if(!w) return ''; return w.map(([t,n,r])=>`${EN[t].name}×${waveCount(t,n,r)}（${routeName(r)}）`).join('・'); }
 
 /* ================= 塔を建てる ================= */
 function buildTower(slot,type){ const T=TW[type],c=T.lv[0].cost; if(G.gold<c||slot.tower) return false; G.gold-=c; G.spent+=c;
@@ -599,6 +607,10 @@ function frame(dt){ const now=performance.now();
 
 /* ================= はじめ ================= */
 if(HOST.setEra&&MAP.era) HOST.setEra(MAP.era);
+/* 名所ごとの見え方（霧の濃い場所は防衛中だけ薄く、夜の場所は少し明るく） */
+if(MAP.fog!=null&&scene.fog){ if(scene.fog.isFogExp2) scene.fog.density=MAP.fog; else { scene.fog.near=Math.max(scene.fog.near,200); scene.fog.far=Math.max(scene.fog.far,1/MAP.fog); } }
+if(MAP.bright&&HOST.hemi) HOST.hemi.intensity*=MAP.bright;
+if(MAP.ambient){ const L=new THREE.AmbientLight(MAP.ambientColor||'#9aa8c8',MAP.ambient); L.userData.td=1; scene.add(L); }
 camera.fov=48; camera.near=.5; camera.updateProjectionMatrix();
 const LI=QS.has('nolight')?{}:lighten();
 applyQual();
