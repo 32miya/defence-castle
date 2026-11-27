@@ -277,3 +277,4 @@ html.obattle:not(.obready) body::after{content:"陣を敷いております…";
 #obCut.on{animation:obCutIn 1.9s cubic-bezier(.2,.9,.25,1) forwards}
 @keyframes obCutIn{0%{opacity:0;transform:translateX(115%) skewX(-6deg)}14%{opacity:1;transform:translateX(-4%) skewX(-6deg)}22%{transform:translateX(0) skewX(-6deg)}82%{opacity:1;transform:translateX(0) skewX(-6deg)}100%{opacity:0;transform:translateX(-30%) skewX(-6deg)}}
 @media (prefers-reduced-motion:reduce){#obCut.on{animation:none;opacity:1;transform:none}}
+.obB-enemy .pat{margin:0 0 6px;font-size:13px;color:#f3e3bf} .obB-enemy .pat b{color:#ffcf6a;margin:0 4px}

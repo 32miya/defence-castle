@@ -429,7 +429,19 @@ function drawPreview(){ clearPrev(); const m=UI.mode,p=UI.pend,u=UI.sel; if(m===
 
 /* 門の札（閉じた門の耐久・門を選ぶとき） */
 const GMK=[]; MAP.narrow&&MAP.narrow.forEach((g,i)=>{ const m=el('button','obGate',`<b>${g.name||'門'}</b><i><s></s></i>`); m.onclick=e=>{ e.stopPropagation(); if(UI.mode==='gate'&&B&&B.gateOpenAt(B.gates[i])) setPend({gate:i}); }; m.style.display='none'; $('obGates').appendChild(m); GMK.push(m); });
-function updGates(){ if(!B||bench){ for(const m of GMK) m.style.display='none'; return; }
+/* 閉ざした門の扉（3D）: 攻め口の道の向きに直角に、左右2枚の扉が閉まる */
+const DOORS=[]; const doorMat=new THREE.MeshLambertMaterial({color:0x3e2614}),ironMat=new THREE.MeshLambertMaterial({color:0x2a2622});
+function makeDoors(){ for(const d of DOORS){ IY.scene.remove(d.g); } DOORS.length=0; if(!B) return;
+  for(const g of B.gates){ let ang=0,bd=1e9; for(const id in B.routes){ const P=B.routes[id].pts; for(let i=1;i<P.length;i++){ const [ax,az]=P[i-1],[bx,bz]=P[i],dx=bx-ax,dz=bz-az,L2=dx*dx+dz*dz||1,t=Math.max(0,Math.min(1,((g.pos[0]-ax)*dx+(g.pos[1]-az)*dz)/L2)),d=Math.hypot(ax+dx*t-g.pos[0],az+dz*t-g.pos[1]); if(d<bd){ bd=d; ang=Math.atan2(dx,dz); } } }
+    const w=Math.max(4,Math.min(8,g.r*1.4)),h=4.2,G=new THREE.Group(); G.position.set(g.pos[0],H(g.pos[0],g.pos[1]),g.pos[1]); G.rotation.y=ang;
+    const leaves=[]; for(const sd of [-1,1]){ const hinge=new THREE.Group(); hinge.position.x=sd*w/2; const leaf=new THREE.Mesh(new THREE.BoxGeometry(w/2,h,.35),doorMat); leaf.position.set(-sd*w/4,h/2,0); leaf.castShadow=true; hinge.add(leaf);
+      for(const y of [.8,h/2,h-.8]){ const band=new THREE.Mesh(new THREE.BoxGeometry(w/2,.22,.42),ironMat); band.position.set(-sd*w/4,y,0); hinge.add(band); } G.add(hinge); leaves.push({hinge,sd}); }
+    G.visible=false; IY.scene.add(G); DOORS.push({g:G,gate:g,leaves,k:0}); } }
+function updDoors(dt){ for(const D of DOORS){ const shut=!!B&&!B.gateOpenAt(D.gate);
+    if(!shut&&D.gate.hp<=0) D.k=0; /* 破られた門は一気に開く */
+    const to=shut?1:0; if(D.k!==to) D.k+=Math.sign(to-D.k)*Math.min(Math.abs(to-D.k),dt*2.2);
+    D.g.visible=D.k>.01; if(D.g.visible) for(const L of D.leaves) L.hinge.rotation.y=L.sd*(1-D.k)*Math.PI*.5; } }
+let doorT=0; function updGates(){ const nw=performance.now(); updDoors(Math.min(.25,(nw-(doorT||nw))/1000)); doorT=nw; if(!B||bench){ for(const m of GMK) m.style.display='none'; return; }
   B.gates.forEach((g,i)=>{ const m=GMK[i],closed=!B.gateOpenAt(g),show=closed||UI.mode==='gate'; if(!show){ m.style.display='none'; return; }
     const p=project(g.pos[0],H(g.pos[0],g.pos[1])+5,g.pos[1]); if(!p){ m.style.display='none'; return; } m.style.display=''; m.style.transform=`translate3d(${p[0]|0}px,${p[1]|0}px,0)`;
     m.classList.toggle('closed',closed); m.classList.toggle('pick',UI.mode==='gate'&&!closed); m.querySelector('s').style.width=closed?Math.max(0,g.hp)/B.C.gateHP*100+'%':'0';
@@ -541,7 +553,7 @@ function armyFor(){ const sv=loadSave(),base=SIM.baseArmy(MAP);
 function startBattle(){ preloadCuts();
   Object.assign(CAM,MAP.camera||{});
   clearUnits(); bench=null; sunsetDone=false; IY.applyTime(1); OB.shadowDirty=3;
-  const AR=armyFor(); B=new SIM.Battle(MAP,{army:AR.army,h:H,block:OB.block,water:IY.isWater,floor:IY.floorH}); drawRoutes(B);
+  const AR=armyFor(); B=new SIM.Battle(MAP,{army:AR.army,h:H,block:OB.block,water:IY.isWater,floor:IY.floorH,pattern:UI.pattern|0}); if(B.pattern) setTimeout(()=>B&&toast(`<b>敵の陣立て「${B.pattern.name}」</b>${B.pattern.text}`,'big'),2600); makeDoors(); drawRoutes(B);
   buildCards(B); buildLines(); setLines(0); $('obModal').hidden=true; $('obCards').hidden=false; $('obLines').hidden=false; $('obHud').hidden=!QS.has('hud');
   UI.pauseManual=false; finish(); toast(`<b>${MAP.title}</b>${MAP.goal}！`,'big'); $('obSnd').textContent=SND.on?'🔊':'🔇'; sfx('horagai'); sfx('taiko',0,1.5);
 }
@@ -553,7 +565,9 @@ function showBrief(){
   const AR=armyFor();
   Object.assign(CAM,{x:-4,z:-95,dist:215});
   const cap=SIM.capOf(MAP),E=MAP.enemy,cnt={};
-  for(const w of E.waves) for(const u of w.units) cnt[u.type]=(cnt[u.type]||0)+u.men;
+  /* 敵の攻め方（陣立て）: 6通りから毎回ひとつ。「もう一度」は同じ攻め方 */
+  UI.pattern=Math.floor(Math.random()*SIM.PATTERNS.length); const PT=SIM.patternsOf(MAP)[UI.pattern];
+  for(const w of PT.waves) for(const u of w.units) cnt[u.type]=(cnt[u.type]||0)+u.men;
   const tot=Object.values(cnt).reduce((a,b)=>a+b,0);
   const mix=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]).map(k=>`<span><i class="tic t-${k}">${G(k)}</i>${T[k].name} ${Math.round(cnt[k]/tot*100)}%</span>`).join('');
   const role=t=>({yari:'騎馬に強い・弓に弱い。<br>門で敵を食い止める',yumi:'足軽に強い・騎馬に弱い。<br>櫓や石垣の上で射程がのびる',kiba:'弓に強い・足軽に弱い。<br>足が速い。狭い門では弱い',teppo:'足軽に強い・騎馬に弱い。<br>射程が長い'})[t];
@@ -571,7 +585,7 @@ function showBrief(){
   <section class="obB-army"><header>${KABUTO}<b>我が軍</b><span>${AR.army.length}部隊（門${MAP.gates.length}＋3）・${AR.total}人${AR.carried?'<small>前の城から持ち越し（後詰め込み）</small>':''}</span></header>
     ${AR.army.map(a=>`<div class="obB-row"><div class="grp">${groupArt(a.type)}</div><i class="tic t-${SIM.baseOf(a.type)}">${G(a.type)}</i><div class="nm"><b>${a.name}</b><span>${T[a.type].name} ${a.men}人</span></div><p>${role(a.type)}</p></div>`).join('')}
   </section>
-  <section class="obB-enemy">${MON}<h3>敵の<br>傾向</h3><div><div class="mix">${mix}</div><p>${E.trend}</p></div></section>
+  <section class="obB-enemy">${MON}<h3>敵の<br>傾向</h3><div><p class="pat">陣立て<b>「${PT.name}」</b>${PT.text}（6通りの攻め方から）</p><div class="mix">${mix}</div><p>${E.trend}</p></div></section>
   <section class="obB-hint">${por}<em class="rib red">攻略のヒント</em><p>${hint}</p></section>
   <p class="obB-how">アイコンをタップすると時間が止まり、指示を出せます。特技と策（鼓舞・落石・門を閉ざす）も使いこなそう。</p>
   <div class="obB-act"><button class="obB-btn back" id="obBack"><span>戻る</span></button><button class="obB-btn go" id="obStart"><span>出陣</span></button><button class="obB-btn st" id="obBackSt"><span>城選びへ</span></button></div>

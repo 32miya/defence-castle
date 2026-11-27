@@ -3,7 +3,7 @@
 const S=require('../battle/sim.js'),MAPID=process.env.MAP||'matsumoto',MAP=require('../battle/maps/'+MAPID+'.js');
 const ENV=MAPID==='inuyama'?{h:require('./terrain.js').groundH0}:require('./env/'+MAPID+'.js');
 const army=S.formArmy(MAP,Math.round(S.baseArmy(MAP)*(process.env.CARRY?1.1:1)));
-const b=new S.Battle(MAP,{army,h:ENV.h,block:ENV.block,water:ENV.water,floor:ENV.floor});
+const b=new S.Battle(MAP,{army,h:ENV.h,block:ENV.block,water:ENV.water,floor:ENV.floor,pattern:+process.env.PAT||0});
 const sk=process.argv[2]!=='noskill';
 while(b.state==='run'){ b.step(.5);
   const A=b.live('ally');

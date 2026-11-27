@@ -161,7 +161,8 @@ class Battle{
     this.lines=map.lines; this.breached=0;
     /* 防衛線がルートのどこにあたるか */
     this.lineS={}; for(const id in this.routes){ const r=this.routes[id]; this.lineS[id]=this.lines.map(L=>{ let s=null; for(const p of L.pts){ const q=projRoute(r,p[0],p[1]); if(q.d<15) s=s===null?q.s:Math.min(s,q.s); } return s; }); }
-    this.waves=(opt.waves||map.enemy.waves).map((w,i)=>Object.assign({i,spawned:false},w));
+    this.pattern=opt.waves?null:patternsOf(map)[(opt.pattern|0)%PATTERNS.length];
+    this.waves=(opt.waves||this.pattern.waves).map((w,i)=>Object.assign({i,spawned:false},w));
     this.waveNow=-1; this.spawnQ=[];
     this.skill=(map.general&&map.general.skill)||null;
     this.bossSkill=(map.enemy.boss&&map.enemy.boss.skill)||null;
@@ -236,7 +237,6 @@ class Battle{
     for(const u of E) this.thinkEnemy(u,A,dt);
     this.combat(A.concat(E),dt);
     this.moveAll(A.concat(E),dt);
-    this.separate(A); this.separate(E);
     this.checkEnd();
   }
   spawnWaves(dt){
@@ -261,7 +261,7 @@ class Battle{
       u.target=t; const d=dist(u.x,u.z,t.x,t.z); if(d>(T.melee?this.C.contact:range*.9)){ if(this.stale(u,t.x,t.z,6)) this.goTo(u,t.x,t.z); } else u.path=null; return; }
     else if(o.kind==='auto'){ u.aiT=(u.aiT||0)-dt; if(u.aiT<=0){ u.aiT=2; this.autoPick(u,E); } anchor=u.autoAnchor||[u.home.pos[0],u.home.pos[1]]; }
     /* 守備・援軍・任せる: 近くの敵と戦う */
-    const leash=T.melee?(u.type==='kiba'?22:14):range;
+    const leash=T.melee?(u.type==='kiba'?34:24):range;
     let t=(o.kind==='auto'&&u.autoTarget&&u.autoTarget.state!=='dead'&&u.autoTarget.state!=='gone'&&dist(u.autoTarget.x,u.autoTarget.z,anchor[0],anchor[1])<55)?u.autoTarget:nearestE(anchor[0],anchor[1],T.melee?leash:range,true);
     if(!T.melee){ /* 弓: 動かずに射る（射程の外の敵は、任せるときだけ寄る） */
       const inR=nearestE(u.x,u.z,range,true); u.target=inR;
@@ -271,6 +271,8 @@ class Battle{
       else if(inR&&(o.kind==='auto'||ad<=6)){ u.path=null; }
       else if(ad>2.5){ u.moveFire=!!inR; /* 命じられた場所へ向かう途中も、射程内の敵に矢を射かけながら進む */ if(!u.path||!u.goal||dist(u.goal[0],u.goal[1],anchor[0],anchor[1])>2) this.goTo(u,anchor[0],anchor[1]); }
       return; }
+    /* 守る場所から少し離れていても、すぐ近くで味方と戦っている敵がいれば加勢する */
+    if(!t){ let bd=28; for(const e of E){ if(e.state==='rout'||!e.engaged) continue; const d=dist(u.x,u.z,e.x,e.z); if(d<bd){ bd=d; t=e; } } }
     if(t){ u.target=t; const d=dist(u.x,u.z,t.x,t.z); if(d>this.C.contact*.9){ if(this.stale(u,t.x,t.z,5)) this.goTo(u,t.x,t.z); } else u.path=null; }
     else { u.target=null; const ad=dist(u.x,u.z,anchor[0],anchor[1]); if(ad>2.5){ if(!u.path||!u.goal||dist(u.goal[0],u.goal[1],anchor[0],anchor[1])>2) this.goTo(u,anchor[0],anchor[1]); } else u.path=null; }
   }
@@ -314,7 +316,7 @@ class Battle{
     if(T.melee){
       if(near&&nd<=this.C.contact){ u.target=near; u.path=null; return; }
       /* 騎馬は近くの弓を狙って突撃、足軽は近くの部隊に向かう */
-      let chase=null,cd=u.type==='kiba'?26:14; for(const a of A){ if(a.state==='rout') continue; const d=dist(u.x,u.z,a.x,a.z); const want=u.type==='kiba'?(a.base==='yumi'?d:d+12):d; if(want<cd){ cd=want; chase=a; } }
+      let chase=null,cd=u.type==='kiba'?30:18; for(const a of A){ if(a.state==='rout') continue; const d=dist(u.x,u.z,a.x,a.z); const want=u.type==='kiba'?(a.base==='yumi'?d:d+12):d; if(want<cd){ cd=want; chase=a; } }
       if(chase){ u.target=chase; if(u.mode!=='chase'||this.stale(u,chase.x,chase.z,4)) this.goTo(u,chase.x,chase.z); u.mode='chase'; return; }
     } else {
       /* 弓: 射程に入ったら止まって射る。足軽を優先 */
@@ -460,7 +462,7 @@ class Battle{
     for(const e of this.live('enemy')) if(e.state!=='rout'&&HS.some(H=>e.x>H.x0&&e.x<H.x1&&e.z>H.z0&&e.z<H.z1)){ this.end('lose','本丸に敵が入った'); return; }
     if(this.time>=this.duration){ this.end('win',this.map.winText||'守り抜いた'); return; }
     const allSpawned=this.waves.every(w=>w.spawned)&&!this.spawnQ.length;
-    if(allSpawned&&!this.live('enemy').length){ this.end('win','敵は兵を引いた'); return; }
+    if(allSpawned&&!this.live('enemy').some(e=>e.state!=='rout')){ this.end('win','最後の攻撃を退けた。敵は兵を引いた'); return; }
     if(!this.live('ally').some(u=>u.men>0)){ this.end('lose','味方の部隊がすべて崩れた'); }
   }
   end(r,why){ this.state=r; this.why=why; this.events.push({k:'end',r,why}); }
@@ -506,7 +508,36 @@ function nextArmy(res,nextMap,opt){
 }
 
 /* 設定データの army（直接遊んだときの軍勢）の総兵数。兵数の倍率をかける */
+/* 敵の攻め方（陣立て）6通り。設定データの波（定石）をもとに、攻め口・兵種・時間を組みかえる。兵の総数は同じ */
+const PATTERNS=[
+  {id:'jouseki',name:'定石',text:'それぞれの攻め口から、決まった順に攻め寄せる'},
+  {id:'toppa',name:'一点突破',text:'波ごとに1つの攻め口へ兵を集めて押し破る'},
+  {id:'hasami',name:'挟み撃ち',text:'離れた2つの攻め口から同時に攻め、守りを割る'},
+  {id:'zenpoui',name:'四方攻め',text:'すべての攻め口に兵を分け、守りの薄い所を探る'},
+  {id:'kiba',name:'騎馬の先駆け',text:'騎馬を先に走らせ、波の間がせまい速攻'},
+  {id:'hajou',name:'波状攻め',text:'1つの波を2つに分け、休む間を与えず攻め続ける'}];
+function patternsOf(map){
+  if(map._patterns) return map._patterns;
+  const W=map.enemy.waves,R=map.routes.map(r=>r.id),n=R.length,rn=id=>(map.routes.find(r=>r.id===id)||{}).name||id;
+  const sp=id=>{ const r=map.routes.find(q=>q.id===id); return r.pts[0]; };
+  /* いちばん離れた2つの攻め口 */
+  let fa=R[0],fb=R[n-1],fd=-1; for(const a of R) for(const b of R){ const d=dist(sp(a)[0],sp(a)[1],sp(b)[0],sp(b)[1]); if(d>fd){ fd=d; fa=a; fb=b; } }
+  const clone=w=>Object.assign({},w,{units:w.units.map(u=>Object.assign({},u))});
+  const say=(w,extra)=>{ const rs=[...new Set(w.units.map(u=>u.route))].map(rn); w.text=(extra||'')+rs.join('・')+'から攻め寄せる'; return w; };
+  const P=[];
+  P.push(W.map(clone));
+  P.push(W.map((w0,i)=>{ const w=clone(w0),f=R[(i*2+1)%n]; w.units.forEach((u,j)=>{ if(!u.boss&&j%5<3) u.route=f; }); return say(w,rn(f)+'に兵を集めた！ '); }));
+  P.push(W.map((w0,i)=>{ const w=clone(w0); w.units.forEach((u,j)=>{ if(!u.boss) u.route=(j+i)%2?fa:fb; }); return say(w,'挟み撃ち！ '); }));
+  P.push(W.map((w0,i)=>{ const w=clone(w0); w.units.forEach((u,j)=>{ if(!u.boss) u.route=R[(j+i)%n]; }); return say(w); }));
+  P.push(W.map((w0,i)=>{ const w=clone(w0); w.t=Math.round(w.t*.9); if(i<2) w.units.forEach((u,j)=>{ if(!u.boss&&baseOf(u.type)==='yari'&&j%2===0){ u.type='kiba'; u.delay=0; } }); return say(w,i<2?'騎馬が先に駆けてくる！ ':''); }));
+  { const out=[]; W.forEach((w0,i)=>{ const w=clone(w0),nx=W[i+1],gap=nx?Math.min(50,(nx.t-w.t)*.45):45;
+      const a=Object.assign(clone(w),{units:w.units.filter((u,j)=>u.boss||j%2===0)}),b=Object.assign(clone(w),{t:w.t+Math.round(gap),label:w.label+'の後詰め',units:w.units.filter((u,j)=>!u.boss&&j%2===1)});
+      out.push(say(a)); if(b.units.length) out.push(say(b,'休む間もなく、')); }); P.push(out); }
+  /* 攻め方ごとの兵の多さ（集中する攻め方は少しだけ兵を減らして、むずかしさをそろえる） */
+  const MUL=[1,.92,.94,.94,.9,1]; P.forEach((ws,i)=>{ if(MUL[i]!==1) ws.forEach(w=>w.units.forEach(u=>{ u.men=Math.round(u.men*MUL[i]); })); });
+  map._patterns=PATTERNS.map((p,i)=>Object.assign({},p,{i,waves:P[i]}));
+  return map._patterns; }
 const baseArmy=map=>map.army.reduce((t,a)=>t+a.men,0)*DEF.menScale;
-const API={TYPES,BEATS,SKILLS,SAKU,DEF,Battle,Grid,buildNav,navPath,projRoute,nextArmy,capOf,formArmy,GROW,MIN_UNITS,baseOf,baseArmy};
+const API={PATTERNS,patternsOf,TYPES,BEATS,SKILLS,SAKU,DEF,Battle,Grid,buildNav,navPath,projRoute,nextArmy,capOf,formArmy,GROW,MIN_UNITS,baseOf,baseArmy};
 if(typeof module!=='undefined'&&module.exports) module.exports=API; else root.OshiroBattleSim=API;
 })(typeof window!=='undefined'?window:globalThis);
