@@ -51,7 +51,7 @@ html.obattle:not(.obready) body::after{content:"陣を敷いております…";
 .obCard .od{grid-area:od;font-size:10.5px;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .obCard.sel{border-color:#ffd98a;box-shadow:0 0 0 2px #ffd98a} .obCard.rout{opacity:.7} .obCard.dead{opacity:.35}
 .k{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font:700 12.5px/1 "Hiragino Mincho ProN","Yu Mincho",serif;color:#fff;background:#555;flex:none}
-.k.t-yari{background:#2f6b4f} .k.t-yumi{background:#7a4f9a} .k.t-kiba{background:#a8642a} .k.t-teppo{background:#444}
+.k.t-yari{background:#2f6b4f} .k.t-yumi{background:#7a4f9a} .k.t-kiba{background:#a8642a} .k.t-teppo{background:#3e4a5c} .k.t-taiho{background:#5a4636}
 .obU.t-yari .k,.obU.t-yumi .k,.obU.t-kiba .k{width:auto;height:auto;background:none}
 /* 指示の画面 */
 #obOrder{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 82px);width:min(440px,calc(100% - 16px));background:rgba(22,19,15,.94);border:1px solid #d6a933;border-radius:14px;padding:10px;pointer-events:auto;box-shadow:0 8px 30px rgba(0,0,0,.5)}
@@ -145,7 +145,7 @@ html.obattle:not(.obready) body::after{content:"陣を敷いております…";
 .obU,.obU.enemy,.obU.boss{width:46px;height:66px;margin:-66px 0 0 -23px;border:0;border-radius:0;background:none;box-shadow:none}
 .obU::before{inset:0}
 .obU.ally::after,.obU.enemy::after{display:none}
-.obU .spr{position:absolute;left:0;top:0;width:46px;height:66px;background-image:var(--spr);background-size:368px 198px;background-repeat:no-repeat;filter:drop-shadow(0 2px 2px rgba(0,0,0,.55))}
+.obU .spr{position:absolute;left:0;top:0;width:46px;height:66px;background-image:var(--spr);background-size:368px 330px;background-repeat:no-repeat;filter:drop-shadow(0 2px 2px rgba(0,0,0,.55))}
 .obU .spr.mir{transform:scaleX(-1)}
 .obU.near .spr{visibility:hidden}   /* 近いときは3Dの兵士を見せる */
 .obU .n{top:auto;bottom:100%;margin:0 0 1px;font-size:10px;padding:0 4px}
@@ -185,9 +185,9 @@ html.obattle:not(.obready) body::after{content:"陣を敷いております…";
 .obKabuto{width:38px;height:32px;flex:none}
 .obB-row{display:grid;grid-template-columns:auto auto 1fr;grid-template-areas:"grp tic nm" "grp tic rl";align-items:center;gap:0 10px;margin-top:6px;padding:6px 10px 6px 6px;background:linear-gradient(180deg,#fbf3dc,#ecdbb3);border:1px solid #c9a24a;border-radius:8px;color:#2a1d10}
 .obB-row .grp{grid-area:grp;position:relative;width:86px;height:56px}
-.obB-row .grp i{position:absolute;bottom:-2px;width:39px;height:56px;background-image:var(--spr);background-size:312px 168px;background-repeat:no-repeat;filter:drop-shadow(0 1px 1px rgba(0,0,0,.4))}
+.obB-row .grp i{position:absolute;bottom:-2px;width:39px;height:56px;background-image:var(--spr);background-size:312px 280px;background-repeat:no-repeat;filter:drop-shadow(0 1px 1px rgba(0,0,0,.4))}
 .tic{grid-area:tic;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;box-shadow:inset 0 0 0 2px rgba(255,255,255,.35),0 2px 3px rgba(0,0,0,.3);flex:none}
-.tic .gl{width:30px;height:30px} .tic.t-yari{background:#2f8a5a} .tic.t-yumi{background:#8e56c2} .tic.t-kiba{background:#d0682a} .tic.t-teppo{background:#555}
+.tic .gl{width:30px;height:30px} .tic.t-yari{background:#2f8a5a} .tic.t-yumi{background:#8e56c2} .tic.t-kiba{background:#d0682a} .tic.t-teppo{background:#3f5876} .tic.t-taiho{background:#6b4a30}
 .obB-row .nm{grid-area:nm;line-height:1.25} .obB-row .nm b{font-family:"Hiragino Mincho ProN",serif;font-size:18px;font-weight:900;display:block} .obB-row .nm span{font-size:14px;font-weight:700}
 .obB-row p{grid-area:rl;margin:2px 0 0;font-size:11.5px;line-height:1.45;color:#4a3826;border-top:1px dashed rgba(120,90,40,.35);padding-top:3px}
 @media (min-width:500px){ .obB-row{grid-template-columns:auto auto 1fr 1.2fr;grid-template-areas:"grp tic nm rl"} .obB-row p{border-top:0;border-left:1px solid rgba(120,90,40,.45);padding:0 0 0 10px;margin:0} }
@@ -199,7 +199,7 @@ html.obattle:not(.obready) body::after{content:"陣を敷いております…";
 .obB-hint{position:relative;display:flex;align-items:center;gap:12px;margin-top:22px;padding:16px 12px 12px 4px;background:linear-gradient(180deg,#fbf3dc,#ead8ae);border:2px solid #c9a24a;border-radius:12px;box-shadow:0 4px 10px rgba(0,0,0,.4)}
 .obB-hint .rib{left:110px;transform:none;top:-13px}
 .obB-hint .por{flex:none;width:96px;height:92px;margin:-26px 0 -6px 2px;border-radius:10px;border:3px solid #c9a24a;background-size:cover;background-position:center;box-shadow:0 3px 8px rgba(0,0,0,.45);background-color:#5a1d14}
-.obB-hint .por.spr{background-image:var(--spr);background-size:768px 288px;background-color:#e9d2a2}
+.obB-hint .por.spr{background-image:var(--spr);background-size:768px 480px;background-color:#e9d2a2}
 .obB-hint p{margin:0;font-size:13px;line-height:1.6;font-weight:600} .obB-hint .gen{font-size:11.5px;color:#5a4426;font-weight:500}
 .obB-how{margin:10px 2px 0;font-size:11.5px;color:#fff;text-shadow:0 1px 2px #000;text-align:center}
 .obB-act{display:flex;align-items:center;gap:8px;margin:14px 0 6px}

@@ -8,6 +8,8 @@
 'use strict';
 const IY=window.__iy, THREE=window.THREE, SIM=window.OshiroBattleSim;
 const MAP=(window.OshiroBattleMaps||{})[window.OB_MAP||(new URLSearchParams(location.search).get('map'))||'inuyama']||Object.values(window.OshiroBattleMaps||{})[0];
+/* ?battle&newunits: ステージ後半の兵種（鉄砲・大砲）を今の城で試す */
+if(/[?&]newunits\b/.test(location.search)) MAP.unitStage=9;
 if(!IY||!THREE||!SIM||!MAP){ console.warn('battle: not ready'); return; }
 const QS=new URLSearchParams(location.search);
 const T=SIM.TYPES;
@@ -22,7 +24,8 @@ const GLYPH={
   yumi:'<path d="M3.8 7.2 8 4.4l4.2 2.8z"/><circle cx="8" cy="8.6" r="1.7"/><path d="M5.6 10.6h4.8l1 5.4H4.6z"/><path d="M5 16h2.4L8 21.2H5.8zM8.6 16H11l-.8 5.2H8z"/><path d="M15.6 2.6c5.4 4.6 5.4 14.2 0 18.8" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M15.6 2.6v18.8M9.5 12h11" stroke="currentColor" stroke-width=".8" fill="none"/><path d="m21.6 12-1.8-1.1v2.2z"/>',
   kiba:'<path d="M2.4 13.4c0-2.6 2.2-3.6 5-3.6h7.4l3.4-3.9 3 1.3-1.6 3c-.1 2.2-1.1 3.6-2.8 3.6H4.4z"/><path d="M5 13.4v6.4M7.6 13.4v6.4M15 13.4v6.4M17.2 13.4v6.4M3 11.4.8 15.6" stroke="currentColor" stroke-width="1.5" fill="none"/><circle cx="11" cy="3.6" r="1.6"/><path d="M9.6 5.4h2.8l.8 4.6H9z"/><path d="M13.4 6.4 22.6 1.8" stroke="currentColor" stroke-width="1.2" fill="none"/>'
 };
-GLYPH.teppo=GLYPH.yumi;
+GLYPH.teppo='<path d="M3.8 7.2 8 4.4l4.2 2.8z"/><circle cx="8" cy="8.6" r="1.7"/><path d="M5.6 10.6h4.8l1 5.4H4.6z"/><path d="M5 16h2.4L8 21.2H5.8zM8.6 16H11l-.8 5.2H8z"/><path d="M6 11.6h16.6v1.6H6z"/><path d="M6.4 11.6 4 15.6h2.6l1.4-3z"/>';
+GLYPH.taiho='<circle cx="8" cy="17" r="4.3" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="8" cy="17" r="1.1"/><path d="M4.2 12.6 20.4 6.8l1.2 3.2-16.2 5.8z"/><circle cx="21.6" cy="8.2" r="1.5"/><path d="M12 19.4h9.6V21H12z"/>';
 const G=t=>`<svg class="gl" viewBox="0 0 24 24" fill="currentColor" aria-label="${(T[t]||T.yari).name}">${GLYPH[t]||GLYPH[SIM.baseOf(t)]||GLYPH.yari}</svg>`;
 
 const OB=window.OshiroBattle={ready:false,shadowCenter:[(MAP.keep.x0+MAP.keep.x1)/2,(MAP.keep.z0+MAP.keep.z1)/2],shadowDirty:4,frame,after,map:MAP};
@@ -157,7 +160,14 @@ const FIGS={
         neu:[[.42,.74,.26,0,.38,0,HAKAMA],[.25,.25,.25,0,1.52,0,SKIN],[.36,.16,0,0,1.72,0,DARK,0,'cone'],[.05,1.6,.08,.34,1.2,.12,WOOD],[.14,.5,.14,-.18,1.2,-.22,DARK]]},
   kiba:{team:[[.5,.58,.34,0,2.05,0,W],[.03,.55,.36,0,2.7,-.2,W]],
         neu:[[.5,.66,1.5,0,1.3,0,HORSE],[.3,.62,.34,0,1.78,.7,HORSE,-.5],[.26,.3,.52,0,2.05,1.02,HORSE],[.13,.95,.13,-.16,.48,.55,DARK],[.13,.95,.13,.16,.48,.55,DARK],[.13,.95,.13,-.16,.48,-.55,DARK],[.13,.95,.13,.16,.48,-.55,DARK],
-             [.25,.25,.25,0,2.5,0,SKIN],[.36,.16,0,0,2.7,0,DARK,0,'cone'],[.05,3,.05,.34,2.4,.3,WOOD,-.35],[.4,.3,.62,0,1.72,0,DARK]]}
+             [.25,.25,.25,0,2.5,0,SKIN],[.36,.16,0,0,2.7,0,DARK,0,'cone'],[.05,3,.05,.34,2.4,.3,WOOD,-.35],[.4,.3,.62,0,1.72,0,DARK]]},
+  /* 鉄砲足軽: 陣笠をかぶり、火縄銃を前へ構える */
+  teppo:{team:[[.5,.6,.32,0,1.05,0,W],[.03,.5,.34,0,1.7,-.2,W]],
+        neu:[[.42,.74,.26,0,.38,0,HAKAMA],[.25,.25,.25,0,1.52,0,SKIN],[.46,.14,0,0,1.7,0,DARK,0,'cone'],[.07,.07,1.5,.1,1.36,.45,WOOD],[.05,.05,.5,.1,1.38,1.2,DARK],[.12,.12,.12,-.2,.95,.1,DARK]]},
+  /* 大砲: 車輪つきの台にのせた砲身と、砲手ひとり */
+  taiho:{team:[[.5,.6,.32,-.75,1.05,-.95,W],[.03,.5,.34,-.75,1.7,-1.15,W]],
+        neu:[[.4,.4,2.0,0,1.0,.35,DARK,-.12],[.5,.5,.3,0,1.0,-.62,DARK],[.7,.28,1.5,0,.62,-.05,WOOD],[.12,.95,.95,-.48,.48,-.1,WOOD],[.12,.95,.95,.48,.48,-.1,WOOD],
+             [.42,.74,.26,-.75,.38,-.95,HAKAMA],[.25,.25,.25,-.75,1.52,-.95,SKIN],[.46,.14,0,-.75,1.7,-.95,DARK,0,'cone'],[.05,1.6,.05,-.45,1.1,-.75,WOOD,.5]]}
 };
 const CAP=QS.has('cap')?+QS.get('cap'):2400;
 const SOL={}; const COL={ally:new THREE.Color('#3a5fae'),enemy:new THREE.Color('#c0392b'),boss:new THREE.Color('#d6a933'),rout:new THREE.Color('#8a8580')};
@@ -176,7 +186,8 @@ function makeSoldiers(){
   /* 矢 */
   OB.rockMesh=new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1.2,0),new THREE.MeshLambertMaterial({color:0x8a8378}),80); OB.rockMesh.count=0; OB.rockMesh.frustumCulled=false; IY.scene.add(OB.rockMesh);
   const ag=new THREE.BoxGeometry(.07,.07,1.5); OB.arrowMesh=new THREE.InstancedMesh(ag,new THREE.MeshBasicMaterial({color:0x2a2018}),500); OB.arrowMesh.count=0; OB.arrowMesh.frustumCulled=false;
-  OB.fireMesh=new THREE.InstancedMesh(ag,new THREE.MeshBasicMaterial({color:0xff8a2a,fog:false,toneMapped:false}),200); OB.fireMesh.count=0; OB.fireMesh.frustumCulled=false; IY.scene.add(OB.fireMesh); IY.scene.add(OB.arrowMesh);
+  OB.fireMesh=new THREE.InstancedMesh(ag,new THREE.MeshBasicMaterial({color:0xff8a2a,fog:false,toneMapped:false}),200); OB.fireMesh.count=0; OB.fireMesh.frustumCulled=false; IY.scene.add(OB.fireMesh);
+  OB.shellMesh=new THREE.InstancedMesh(new THREE.SphereGeometry(.55,8,6),new THREE.MeshLambertMaterial({color:0x1c1a18}),40); OB.shellMesh.count=0; OB.shellMesh.frustumCulled=false; IY.scene.add(OB.shellMesh); IY.scene.add(OB.arrowMesh);
 }
 const _m=new THREE.Matrix4(),_q=new THREE.Quaternion(),_v=new THREE.Vector3(),_v2=new THREE.Vector3(),_s=new THREE.Vector3(1,1,1),_z=new THREE.Vector3(0,0,1);
 function setFig(mesh,i,x,y,z,h,sc){ const e=mesh.instanceMatrix.array,o=i*16,c=Math.cos(h)*sc,s=Math.sin(h)*sc; e[o]=c; e[o+1]=0; e[o+2]=-s; e[o+3]=0; e[o+4]=0; e[o+5]=sc; e[o+6]=0; e[o+7]=0; e[o+8]=s; e[o+9]=0; e[o+10]=c; e[o+11]=0; e[o+12]=x; e[o+13]=y; e[o+14]=z; e[o+15]=1; }
@@ -191,8 +202,8 @@ function drawSoldiers(battle,alpha,t){
     const x=u.px+(u.x-u.px)*alpha,z=u.pz+(u.z-u.pz)*alpha; u.vx=x; u.vz=z;
     if(rn<400){ _m.makeTranslation(x,H(x,z)+.35,z); OB.rings.setMatrixAt(rn,_m); OB.rings.setColorAt(rn,u.state==='rout'?COL.rout:u.boss?COL.boss:COL[u.side]); rn++; }
     if(!showFigs) continue;
-    const S=SOL[u.base]||SOL.yari; let n=Math.min(60,Math.ceil(u.men/per)); if(u._born){ const age=(performance.now()-u._born)/1000; if(age<8) n=Math.min(n,1+Math.floor(age*8)); else u._born=0; } if(!n) continue;
-    const rout=u.state==='rout',cols=Math.max(u.base==='kiba'?3:4,Math.round(Math.sqrt(n*1.3))),sp=u.base==='kiba'?3.4:2.5,hd=rout?u.heading:u.heading;
+    const S=SOL[u.base]||SOL.yari; let n=Math.min(u.base==='taiho'?8:60,Math.ceil(u.men/per)); if(u._born){ const age=(performance.now()-u._born)/1000; if(age<8) n=Math.min(n,1+Math.floor(age*8)); else u._born=0; } if(!n) continue;
+    const rout=u.state==='rout',cols=Math.max(u.base==='kiba'?3:u.base==='taiho'?2:4,Math.round(Math.sqrt(n*1.3))),sp=u.base==='kiba'?3.4:u.base==='taiho'?4.2:2.5,hd=rout?u.heading:u.heading;
     const ch=Math.cos(hd),sh=Math.sin(hd),col=rout?COL.rout:u.boss?COL.boss:COL[u.side];
     const rows=Math.ceil(n/cols);
     for(let i=0;i<n;i++){ if(S.n>=CAP) break;
@@ -224,6 +235,13 @@ function drawArrows(dt){ let n=0,nf=0; for(let i=arrows.length-1;i>=0;i--){ cons
   if(A.fire){ _m.compose(_v2.set(x,y,z),_q,_s.set(3,3,1.3)); OB.fireMesh.setMatrixAt(nf++,_m); _s.set(1,1,1); } else { _m.compose(_v2.set(x,y,z),_q,_s); OB.arrowMesh.setMatrixAt(n++,_m); } }
   OB.arrowMesh.count=n; if(n) OB.arrowMesh.instanceMatrix.needsUpdate=true; OB.fireMesh.count=nf; if(nf) OB.fireMesh.instanceMatrix.needsUpdate=true; }
 
+/* 鉄砲の煙と、大砲の弾（山なり） */
+const shells=[];
+function gunSmoke(u,t){ const h=u.heading||0,x=u.x+Math.sin(h)*3,z=u.z+Math.cos(h)*3; dust(x,z,3,0xd8d4cc); if(t) dust(t.x,t.z,2.2,0x8a8070); }
+function fireShell(a,x,z,fl){ shells.push({sx:a.x,sz:a.z,sy:H(a.x,a.z)+1.6,ex:x,ez:z,ey:H(x,z)+.5,t:0,T:fl,arc:Math.max(8,Math.hypot(x-a.x,z-a.z)*.28)}); dust(a.x+Math.sin(a.heading||0)*3,a.z+Math.cos(a.heading||0)*3,4,0xe0dcd2); }
+function drawShells(dt){ if(!OB.shellMesh) return; let n=0; for(let i=shells.length-1;i>=0;i--){ const S=shells[i]; S.t+=dt; if(S.t>S.T){ shells.splice(i,1); continue; }
+    const k=S.t/S.T,x=S.sx+(S.ex-S.sx)*k,z=S.sz+(S.ez-S.sz)*k,y=S.sy+(S.ey-S.sy)*k+S.arc*4*k*(1-k); _m.makeTranslation(x,y,z); OB.shellMesh.setMatrixAt(n++,_m); }
+  OB.shellMesh.count=n; if(n) OB.shellMesh.instanceMatrix.needsUpdate=true; }
 /* 落石の岩と土けむり */
 const rockFx=[],dusts=[];
 function dropRocks(x,z){ for(let i=0;i<14;i++){ const a=Math.random()*Math.PI*2,r=Math.random()*9; rockFx.push({x:x+Math.cos(a)*r,z:z+Math.sin(a)*r,t:-Math.random()*.25,T:.9,life:4,s:.7+Math.random()*.9,rx:Math.random()*6,ry:Math.random()*6}); } }
@@ -291,7 +309,7 @@ function setLines(br){ $('obLines').querySelectorAll('span[data-i]').forEach(s=>
 /* 部隊のアイコン */
 const ORD={hold:'守',reinforce:'援',intercept:'迎',auto:'任',retreat:'退'};
 /* 遠目のアイコン: 兵士の絵（battle/img/units.webp）。行=騎馬・弓・足軽、列=正面・横・背中・斜め（味方4列→敵4列） */
-const SPR_ROW={kiba:0,yumi:1,yari:2},SPR_W=46,SPR_H=66;
+const SPR_ROW={kiba:0,yumi:1,yari:2,teppo:3,taiho:4},SPR_W=46,SPR_H=66;
 root.style.setProperty('--spr',`url(${(window.OB_GAME_URL||'/defence-castle/')}battle/img/units.webp)`);
 function iconFor(u){ let ic=UI.icons.get(u.id); if(ic) return ic;
   ic=el('div','obU '+u.side+' t-'+u.base+(u.boss?' boss':''),`<span class="spr"></span><span class="n"></span><span class="m"><i></i></span>${u.side==='ally'?'<span class="o"></span>':''}${u.boss?'<span class="bs">大将</span>':''}`);
@@ -311,9 +329,9 @@ function updIcons(battle){
     if(I._near!==NEAR){ I._near=NEAR; I.classList.toggle('near',NEAR); }
     /* 兵士の絵: 画面の上で進んでいる向きに合わせて、正面・横・背中・斜めを選ぶ */
     { const h=u.heading,q=project(x+Math.sin(h)*6,H(x,z)+9,z+Math.cos(h)*6); let f=0,mir=false;
-      if(q){ const dx=q[0]-p[0],dy=q[1]-p[1],a=Math.abs(Math.atan2(dx,dy)); f=a<.5?0:a<1.2?3:a<2.6?1:2; const natLeft=u.base!=='yumi'; mir=f===1||f===3?(natLeft?dx>0:dx<0):false; }
+      if(q){ const dx=q[0]-p[0],dy=q[1]-p[1],a=Math.abs(Math.atan2(dx,dy)); f=a<.5?0:a<1.2?3:a<2.6?1:2; const natLeft=!['yumi','teppo','taiho'].includes(u.base); mir=f===1||f===3?(natLeft?dx>0:dx<0):false; }
       const row=SPR_ROW[u.base]||0,col=f+(u.side==='enemy'?4:0),key=row*16+col+(mir?100:0);
-      if(I._sp!==key){ I._sp=key; const sp=I.firstChild; sp.style.backgroundPosition=`${(col/7*100).toFixed(3)}% ${row*50}%`; sp.classList.toggle('mir',mir); } }
+      if(I._sp!==key){ I._sp=key; const sp=I.firstChild; sp.style.backgroundPosition=`${(col/7*100).toFixed(3)}% ${row*25}%`; sp.classList.toggle('mir',mir); } }
     const men=u.men; if(I._men!==men){ I._men=men; I.children[1].textContent=men; }
     const mo=Math.round(u.morale/5)*5; if(I._mo!==mo){ I._mo=mo; I.children[2].firstChild.style.width=mo+'%'; I.classList.toggle('low',mo<35); }
     const bf=B&&((u.buff&&B.time<u.buff.until)||u.kobuUntil>B.time);
@@ -489,6 +507,9 @@ const SND=(()=>{ let ctx=null,master=null,noise=null,on=true; try{ on=localStora
     gate(){ const t=ctx.currentTime; osc('sine',72,t,.5,.9,38); nz(t,.25,.5,'lowpass',700,1); osc('triangle',900,t+.02,.05,.2,500); },
     gateBreak(){ const t=ctx.currentTime; nz(t,.9,.8,'lowpass',1200,1,200,.01); osc('sine',60,t,.7,.9,30); },
     rout(){ const t=ctx.currentTime; osc('sine',150,t,.7,.5,60); },
+    gun(v){ const t=ctx.currentTime; v=v||1; for(let i=0;i<3;i++){ const d=i*.06+Math.random()*.05; nz(t+d,.22,.55*v,'lowpass',2400,1,300,.002); osc('sine',140,t+d,.12,.3*v,60); } },
+    cannon(v){ const t=ctx.currentTime; v=v||1; osc('sine',58,t,1.1,1.0*v,28); nz(t,1.2,.75*v,'lowpass',900,1,120,.003); nz(t,.08,.5*v,'highpass',1800,1); },
+    boom(v){ const t=ctx.currentTime; v=v||1; nz(t,1.3,.8*v,'lowpass',500,1,90,.01); osc('sine',46,t,.9,.8*v,24); },
     charge(){ S.taiko(0,.9); S.taiko(.12,.9); const t=ctx.currentTime; nz(t,.6,.25,'bandpass',500,1,2200,.05); },
     win(){ for(const d of [0,.35,.7,.85,1.0,1.4]) S.taiko(d,1); setTimeout(()=>S.horagai(2.2,1),1700); },
     lose(){ for(const d of [0,1.3,2.6]) S.bell(d,330,1.1); }
@@ -528,7 +549,10 @@ function cutIn(k,label){ if(bench) return; preloadCuts(); const box=$('obCut'); 
 function onEvents(b){
   for(const e of b.events.splice(0)){
     if(e.k==='spawn'&&e.u.side==='enemy'&&!bench){ e.u._born=performance.now(); dust(e.u.x,e.u.z,5); const ic=iconFor(e.u); ic.classList.add('obNew'); setTimeout(()=>ic.classList.remove('obNew'),1500); }
-    if(e.k==='volley'){ volley(e.a,e.b); if(!bench) sfx('arrow',.22,vol()*(e.a.side==='ally'?1:.75)); }
+    if(e.k==='gun'){ if(showFigs) gunSmoke(e.a,e.b); if(!bench) sfx('gun',.15,vol()*(e.a.side==='ally'?1:.8)); }
+    else if(e.k==='cannon'){ fireShell(e.a,e.x,e.z,e.fl); sfx('cannon',.2,vol()); }
+    else if(e.k==='shell'){ dust(e.x,e.z,e.r,0xff9a3a); dust(e.x,e.z,e.r*1.3,0x6a6058); sfx('boom',.15,vol()); if(e.hits>=2&&e.side==='ally') toast(`砲撃！敵${e.hits}部隊をまとめて崩した`,'good'); }
+    else if(e.k==='volley'){ volley(e.a,e.b); if(!bench) sfx('arrow',.22,vol()*(e.a.side==='ally'?1:.75)); }
     else if(e.k==='skill'){ sfx(e.u.base==='kiba'?'charge':'taiko'); if(e.u.side==='ally') cutIn(e.u.base==='kiba'?'charge':e.u.base==='yari'?'yari':'fire',B.skillOf(e.u).name+'！'); }
     else if(e.k==='chargeHit'){ sfx('clash',.1,1); sfx('taiko',.2,0,.7); }
     else if(e.k==='saku'){ if(e.kind==='kobu'){ sfx('taiko'); sfx('horagai',0,.8,.6); toast('鼓舞！士気が上がった','good'); } else if(e.kind==='rakuseki'){ dropRocks(e.a.x,e.a.z); sfx('taiko'); cutIn('rock','落石！'); } else if(e.kind==='hiya'){ fireVolley(e.a.from,e.a.x,e.a.z); sfx('arrow',0,1); sfx('arrow',.25,1); cutIn('fire','火矢！'); } else if(e.kind==='gate'){ sfx('gate'); toast(`${B.gates[e.a.gate].name}を閉ざした`,'good'); } }
@@ -574,7 +598,7 @@ function startBattle(){ preloadCuts();
 /* ===== 出陣前の画面 ===== */
 const MON='<svg viewBox="0 0 40 40" class="obMon"><circle cx="20" cy="20" r="18.5" class="ring"/><g class="pet">'+[0,72,144,216,288].map(a=>`<ellipse cx="20" cy="11" rx="5.2" ry="7.4" transform="rotate(${a} 20 20)"/>`).join('')+'</g><circle cx="20" cy="20" r="3.6" class="core"/></svg>';
 const KABUTO='<svg viewBox="0 0 48 40" class="obKabuto"><path d="M6 6c6 2 10 7 12 12h12c2-5 6-10 12-12-1 7-5 12-10 14l1 4H15l1-4C11 18 7 13 6 6z" fill="#d6a933"/><path d="M12 22h24c0 8-5 14-12 14s-12-6-12-14z" fill="#2b2a2a" stroke="#d6a933" stroke-width="1.5"/><path d="M8 26h8l-2 8H6zM32 26h8l2 8h-8z" fill="#3a3a3a" stroke="#d6a933" stroke-width="1.2"/><circle cx="24" cy="19" r="3" fill="#c0392b"/></svg>';
-function groupArt(type){ /* 兵士の絵を重ねて部隊の絵にする */ const row=SPR_ROW[SIM.baseOf(type)]||0; return [[3,0,-2,1],[0,0,16,0],[3,1,34,1],[0,0,52,0]].map(([c,m,x,z],i)=>`<i class="g${i}" style="left:${x}px;z-index:${z};background-position:${(c/7*100).toFixed(3)}% ${row*50}%${m?';transform:scaleX(-1)':''}"></i>`).join(''); }
+function groupArt(type){ /* 兵士の絵を重ねて部隊の絵にする */ const row=SPR_ROW[SIM.baseOf(type)]||0; return [[3,0,-2,1],[0,0,16,0],[3,1,34,1],[0,0,52,0]].map(([c,m,x,z],i)=>`<i class="g${i}" style="left:${x}px;z-index:${z};background-position:${(c/7*100).toFixed(3)}% ${row*25}%${m?';transform:scaleX(-1)':''}"></i>`).join(''); }
 function showBrief(){
   const AR=armyFor();
   Object.assign(CAM,{x:-4,z:-95,dist:215});
@@ -585,8 +609,8 @@ function showBrief(){
   for(const w of PT.waves) for(const u of w.units) cnt[u.type]=(cnt[u.type]||0)+u.men;
   const tot=Object.values(cnt).reduce((a,b)=>a+b,0);
   const mix=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]).map(k=>`<span><i class="tic t-${k}">${G(k)}</i>${T[k].name} ${Math.round(cnt[k]/tot*100)}%</span>`).join('');
-  const role=t=>({yari:'騎馬に強い・弓に弱い。<br>門で敵を食い止める',yumi:'足軽に強い・騎馬に弱い。<br>櫓や石垣の上で射程がのびる',kiba:'弓に強い・足軽に弱い。<br>足が速い。狭い門では弱い',teppo:'足軽に強い・騎馬に弱い。<br>射程が長い'})[t];
-  const B0=E.boss||{},por=B0.portrait?`<div class="por" style="background-image:url(${(window.OB_GAME_URL||'/defence-castle/')}battle/img/${B0.portrait})"></div>`:`<div class="por spr" style="background-position:${(4/7*100).toFixed(3)}% ${(SPR_ROW[(E.waves.flatMap(w=>w.units).find(u=>u.boss)||{}).type]||0)*50}%"></div>`;
+  const role=t=>({yari:'騎馬に強い・弓に弱い。<br>門で敵を食い止める',yumi:'足軽に強い・騎馬に弱い。<br>櫓や石垣の上で射程がのびる',kiba:'弓に強い・足軽に弱い。<br>足が速い。狭い門では弱い',teppo:'騎馬の突撃に強い。<br>遠く強いが込め直しに3秒。詰め寄られると弱い',taiho:'遠くの敵をまとめて崩す。門も壊す。<br>込め直し8秒。近すぎると撃てない'})[t];
+  const B0=E.boss||{},por=B0.portrait?`<div class="por" style="background-image:url(${(window.OB_GAME_URL||'/defence-castle/')}battle/img/${B0.portrait})"></div>`:`<div class="por spr" style="background-position:${(4/7*100).toFixed(3)}% ${(SPR_ROW[(E.waves.flatMap(w=>w.units).find(u=>u.boss)||{}).type]||0)*25}%"></div>`;
   const hint=(MAP.hint?MAP.hint+'<br>':'')+`本隊は<b>${B0.name}</b>。${B0.skill?`特技「${B0.skill.name}」${B0.skill.text}。`:''}<br><span class="gen">味方 ${MAP.general.name}「${MAP.general.skill.name}」${MAP.general.skill.text}</span>`;
   const M=$('obModal'); M.hidden=false; M.className='obModal obBriefM';
   M.innerHTML=`<div class="obBrief">
@@ -621,7 +645,7 @@ function showResult(){
   const sub=`<span class="obR-btns">${hasNext?'<button id="obAgain">もう一度</button>':''}<button id="obToBrief">出陣前の画面へ</button></span>`;
   let body;
   if(win){
-    const rows=r.army.map(a=>{ const b=SIM.baseOf(a.type),bb=b==='teppo'?'yumi':b; return `<div class="obR-row" style="background-image:url(${IMG}res_row_${bb}.webp)">
+    const rows=r.army.map(a=>{ const b=SIM.baseOf(a.type),bb=['yari','yumi','kiba','teppo','taiho'].includes(b)?b:'yari'; return `<div class="obR-row" style="background-image:url(${IMG}res_row_${bb}.webp)">
       <span class="nm"><b>${a.name}</b><small>${(SIM.TYPES[a.type]||{}).name||''}${a.gen?'・'+a.gen:''}</small></span><span class="mn"><b>${a.men}</b><small>／${a.men0}人</small></span></div>`; }).join('');
     body=`<div class="obR-pg win" style="background-image:url(${IMG}res_win.webp)">
       <div class="obR-ttl" style="font-size:calc(var(--u)*${Math.min(44,320/title.length).toFixed(1)})">${title}</div>
@@ -731,8 +755,8 @@ function frame(dt,now){
   root.classList.toggle('inMenu',!B);
   placeCamera(dt);
   const alpha=B?Math.min(1,B.acc/B.C.tick):1;
-  if(B){ drawSoldiers(B,paused()?1:alpha,clock); drawArrows(paused()?0:dt*UI.speed); }
-  else { for(const k in SOL) SOL[k].tm.count=SOL[k].nm.count=0; OB.rings.count=0; OB.arrowMesh.count=0; OB.fireMesh.count=0; }
+  if(B){ drawSoldiers(B,paused()?1:alpha,clock); drawArrows(paused()?0:dt*UI.speed); drawShells(paused()?0:dt*UI.speed); }
+  else { for(const k in SOL) SOL[k].tm.count=SOL[k].nm.count=0; OB.rings.count=0; OB.arrowMesh.count=0; OB.fireMesh.count=0; OB.shellMesh.count=0; }
   /* 画面 */
   root.classList.toggle('isPaused',!!B&&paused()&&$('obModal').hidden);
   $('obPaused').hidden=!(UI.pauseManual&&B&&B.state==='run'&&!UI.sel&&!UI.mode);
