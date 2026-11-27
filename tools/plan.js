@@ -9,7 +9,7 @@ while(b.state==='run'){ b.step(.5);
   const A=b.live('ally');
   if(sk) for(const u of A){ if(u.engaged&&b.skillWait(u)<=0) b.useSkill(u.id); if(u.morale<35&&b.saihai>=1) b.useSaku('kobu',{target:u.id}); }
   const Ew=b.live('enemy').filter(e=>e.state!=='rout').sort((x,y)=>b.remain(x)-b.remain(y));
-  if(sk&&Ew[0]&&b.saihai>=4) b.useSaku('rakuseki',{x:Ew[0].x,z:Ew[0].z});
+  if(sk&&Ew[0]&&b.saihai>=4) b.useSaku(b.rockGate(Ew[0].x,Ew[0].z)?'rakuseki':'hiya',{x:Ew[0].x,z:Ew[0].z});
   for(const k of A.filter(u=>u.type==='kiba'&&u.state!=='rout')){ const t=b.live('enemy').filter(e=>e.base==='yumi'&&e.state!=='rout'&&Math.hypot(e.x-k.x,e.z-k.z)<60)[0]; if(t&&k.order.kind!=='intercept') b.order(k.id,{kind:'intercept',target:t.id}); else if(!t&&k.order.kind!=='hold') b.order(k.id,{kind:'hold',slot:k.home}); }
 }
 const r=b.result(); console.log(JSON.stringify({map:MAPID,skills:sk,carry:!!process.env.CARRY,state:r.state,why:r.why,t:r.time|0,loss:Math.round(r.allyLost/r.allyMen0*100)+'%',enemy:r.enemyLost+'/'+r.enemyMen,army:r.army.map(a=>a.name+':'+a.men+'/'+a.men0).join(' ')}));

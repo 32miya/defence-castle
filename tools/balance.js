@@ -30,7 +30,7 @@ function run(mode,seed){ let s=seed||1; Math.random=()=>{ s=(s*16807)%2147483647
       if(process.env.DBG2) console.log((b.time|0)+' F:'+F.map(e=>e.route.id+':'+(b.remain(e)|0)).join(',')+' A:'+A.map(u=>u.base+'>'+(u.order.slot?u.order.slot.id:u.order.kind)+'@'+(u.x|0)+','+(u.z|0)).join(' ')); }
     if(mode==='play2'&&Math.round(b.time*10)%10===0){ /* 特技と策も使う */
       for(const u of b.live('ally')){ if(u.engaged&&b.skillWait(u)<=0) b.useSkill(u.id); if(u.morale<35&&b.saihai>=1) b.useSaku('kobu',{target:u.id}); }
-      const E=b.live('enemy').filter(e=>e.state!=='rout').sort((x,y)=>(y.s/y.route.len)-(x.s/x.route.len)); if(E[0]&&b.saihai>=4) b.useSaku('rakuseki',{x:E[0].x,z:E[0].z}); }
+      const E=b.live('enemy').filter(e=>e.state!=='rout').sort((x,y)=>(y.s/y.route.len)-(x.s/x.route.len)); if(E[0]&&b.saihai>=4) b.useSaku(b.rockGate(E[0].x,E[0].z)?'rakuseki':'hiya',{x:E[0].x,z:E[0].z}); }
     for(const e of b.events.splice(0)) if(['wave','rout','dead','line','end','bossdown','gone'].includes(e.k)) log.push(b.time.toFixed(0)+'s '+e.k+' '+(e.u?(e.u.side+':'+e.u.name+'('+e.u.men+')'):(e.name||e.label||e.why||'')));
   }
   if(process.env.DBG){ for(const e of b.live('enemy')) if([].concat(MAP.honmaru).some(H=>e.x>H.x0&&e.x<H.x1&&e.z>H.z0&&e.z<H.z1)) console.log('IN',e.route.id,e.type,e.men,e.x|0,e.z|0); for(const u of b.live('ally')) console.log('A',u.type,u.men,u.x|0,u.z|0,u.order.kind,u.order.slot&&u.order.slot.id, u.state); }

@@ -25,7 +25,8 @@ const SKILLS={
 /* 策（采配を使う。采配は時間とともにたまる） */
 const SAKU={
   kobu:    {name:'鼓舞',      cost:1,text:'味方1部隊の士気を40回復し、15秒攻撃1.2倍。敗走中ならすぐ立ち直る'},
-  rakuseki:{name:'落石',      cost:2,text:'選んだ場所に石を落とす。半径11mの敵に損害・士気低下・8秒足止め'},
+  rakuseki:{name:'落石',      cost:2,text:'門の近くだけ（櫓門の上から落とす）。半径11mの敵に損害・士気低下・8秒足止め。閉じた門の前なら1.5倍'},
+  hiya:    {name:'火矢',      cost:2,text:'城内の弓から、どこへでも放てる。半径10mの敵に損害・士気低下・4秒足止め（落石より少し弱い）'},
   gate:    {name:'門を閉ざす',cost:2,text:'門を25秒閉じる。敵は門を破るまで先へ進めない'}
 };   /* 足軽→騎馬、騎馬→弓、弓→足軽 に強い */
 const baseOf=t=>(TYPES[t]&&TYPES[t].base)||t;
@@ -42,6 +43,7 @@ const DEF={
   enemySpeed:.8,             /* 攻め手は用心して進む（味方より遅い） */
   saihaiStart:2, saihaiMax:5, saihaiRate:1/9, /* 采配: 最初2、9秒で1たまる、最大5 */
   gateTime:25, gateHP:100,
+  rockRange:24,              /* 落石: 門から何mまで落とせるか */
   /* 城方の補正（城攻めには3倍の兵が要ると言われる）: 守り手は受ける損害0.6倍・攻撃1.15倍 */
   defTake:.6, defAtk:1.15,
   /* 堀は渡れるが速さ半分。堀の中の兵は攻撃0.6倍・受ける損害1.3倍。塀をよじ登る兵は速さ0.3倍・攻撃0.5倍・受ける損害1.5倍 */
@@ -150,7 +152,12 @@ class Battle{
     this.nav=buildNav(map);
     this.grid=null; if(opt.grid!==false&&map.keep) this.grid=new Grid(map.keep,this.h,opt.block?1.5:2,opt.block,opt.water,opt.floor);
     /* 敵の進軍ルート: 設定データの点のあいだを、建物や崖をよけて通れる道でつなぐ */
-    if(this.grid) for(const id in this.routes){ const r=this.routes[id],P=[r.pts[0]]; for(let i=1;i<r.pts.length;i++){ const a=P[P.length-1],b=r.pts[i]; const seg=this.grid.find(a[0],a[1],b[0],b[1],'enemy'); if(seg&&seg.length){ for(const q of seg) if(dist(q[0],q[1],P[P.length-1][0],P[P.length-1][1])>.5) P.push(q); } else P.push(b); } r.key=r.pts; r.pts=P; prepRoute(r); this.timeRoute(r); } /* 城内のマス目（合戦の始めに一度だけ作る） */
+    if(this.grid) for(const id in this.routes){ const r=this.routes[id],P=[r.pts[0]]; for(let i=1;i<r.pts.length;i++){ const a=P[P.length-1],b=r.pts[i]; const seg=this.grid.find(a[0],a[1],b[0],b[1],'enemy'); if(seg&&seg.length){ for(const q of seg) if(dist(q[0],q[1],P[P.length-1][0],P[P.length-1][1])>.5) P.push(q); } else P.push(b); } r.key=r.pts; r.pts=P; prepRoute(r); this.timeRoute(r); }
+    /* 塀・石垣を登る道には、騎馬用の別の道（壁をよける）を用意する */
+    if(this.grid) for(const id of Object.keys(this.routes)){ const r=this.routes[id]; let climbs=false; for(let i=1;i<r.pts.length&&!climbs;i++){ const [ax,az]=r.pts[i-1],[bx,bz]=r.pts[i],n=Math.ceil(dist(ax,az,bx,bz)); for(let k=0;k<=n;k++) if(this.grid.wallAt(ax+(bx-ax)*k/n,az+(bz-az)*k/n)){ climbs=true; break; } }
+      r.climbs=climbs; if(!climbs) continue; const K=r.key,P=[K[0]]; let ok=true;
+      for(let i=1;i<K.length;i++){ const a=P[P.length-1],b=K[i]; if(this.grid.wallAt(b[0],b[1])) continue; const seg=this.grid.find(a[0],a[1],b[0],b[1],'enemyKiba'); if(seg&&seg.length){ for(const q of seg) if(dist(q[0],q[1],P[P.length-1][0],P[P.length-1][1])>.5) P.push(q); } else { ok=false; break; } }
+      if(!ok) continue; const rk=Object.assign({},r,{id:id+'~k',pts:P,kibaOf:id,climbs:false}); prepRoute(rk); this.timeRoute(rk); this.routes[id+'~k']=rk; } /* 城内のマス目（合戦の始めに一度だけ作る） */
     this.lines=map.lines; this.breached=0;
     /* 防衛線がルートのどこにあたるか */
     this.lineS={}; for(const id in this.routes){ const r=this.routes[id]; this.lineS[id]=this.lines.map(L=>{ let s=null; for(const p of L.pts){ const q=projRoute(r,p[0],p[1]); if(q.d<15) s=s===null?q.s:Math.min(s,q.s); } return s; }); }
@@ -172,11 +179,12 @@ class Battle{
     u.gen=a.gen||''; u.armyId=a.id; u.home=slot; u.slot=slot; u.order={kind:'hold',x:u.x,z:u.z,slot};
     this.stats.allyMen0+=u.men; return u;
   }
+  mvSide(u){ return u.side==='enemy'&&u.base==='kiba'&&!(u.route&&u.route.climbs)?'enemyKiba':u.side; }   /* 騎馬は塀・石垣を登れない（壁をよける道がない攻め口だけは例外） */
   mkUnit(side,type,men,x,z,name){ const u={id:this.nextId++,side,type,base:baseOf(type),name,men,men0:men,morale:100,x,z,px:x,pz:z,y:this.h(x,z),heading:side==='enemy'?0:Math.PI,charged:new Set(),kobuUntil:0,slowUntil:0,skillReady:0,
       state:'idle',path:null,order:null,target:null,engaged:false,hitBy:[],kills:0,fightT:0,routT:0,cool:Math.random(),moving:false,slot:null,s:0,ri:1};
     this.units.push(u); return u; }
   spawnEnemy(e,wave){
-    const r=this.routes[e.route],p0=r.pts[0],p1=r.pts[1],ang=Math.atan2(p1[0]-p0[0],p1[1]-p0[1]);
+    const r=(baseOf(e.type)==='kiba'&&this.routes[e.route+'~k'])||this.routes[e.route],p0=r.pts[0],p1=r.pts[1],ang=Math.atan2(p1[0]-p0[0],p1[1]-p0[1]);
     const u=this.mkUnit('enemy',e.type,Math.round(e.men*this.enemyScale*this.C.menScale/10)*10,p0[0],p0[1],e.name||TYPES[e.type].name);
     u.route=r; u.ri=1; u.s=0; u.heading=ang; u.boss=!!e.boss; u.wave=wave; u.gen=e.gen||'';
     if(u.boss&&this.bossSkill&&this.bossSkill.kind==='kishu'){ u.speedMul=1.15; }
@@ -396,7 +404,7 @@ class Battle{
         /* 急な斜面では遅くなる */
         const slope=Math.abs(nh-u.y)/st; const f=clamp(1-Math.max(0,slope-.35)*1.4,.3,1);
         const adv=st*f; const ax=u.x+(tx-u.x)/d*adv,az=u.z+(tz-u.z)/d*adv;
-        if(this.grid&&this.grid.blockedAt(ax,az,u.side)&&!this.grid.blockedAt(u.x,u.z,u.side)) break;
+        if(this.grid&&this.grid.blockedAt(ax,az,this.mvSide(u))&&!this.grid.blockedAt(u.x,u.z,this.mvSide(u))) break;
         if(u.side==='enemy'&&u.state!=='rout'){ const g=this.gateBlock(u,ax,az); if(g){ u.atGate=g; this.face(u,{x:g.pos[0],z:g.pos[1]}); break; } }
         u.heading=Math.atan2(tx-u.x,tz-u.z); u.x=ax; u.z=az; u.y=this.h(ax,az); left-=st; u.moving=true; }
     }
@@ -415,13 +423,22 @@ class Battle{
     if(k==='kobu'){ const t=this.unit(a.target); if(!t||t.side!=='ally'||t.state==='dead') return false;
       if(t.state==='rout'){ t.state='idle'; t.morale=55; t.path=null; t.order={kind:'hold',x:t.x,z:t.z,slot:this.slotAt(t)}; this.events.push({k:'rally',u:t}); } else t.morale=Math.min(100,t.morale+40);
       t.kobuUntil=this.time+15; }
-    else if(k==='rakuseki'){ this.rocks.push({x:a.x,z:a.z,t:this.time+.9,r:11}); }
+    else if(k==='rakuseki'){ const g=this.rockGate(a.x,a.z); if(!g) return false; this.rocks.push({x:a.x,z:a.z,t:this.time+.9,r:11,gate:g.i}); }
+    else if(k==='hiya'){ const f=this.fireFrom(a.x,a.z); this.rocks.push({x:a.x,z:a.z,t:this.time+1.3,r:10,fire:true,from:f}); a.from=f; }
     else if(k==='gate'){ const g=this.gates[a.gate]; if(!g||(g.until>this.time&&g.hp>0)) return false; g.until=this.time+this.C.gateTime; g.hp=this.C.gateHP; }
     else return false;
     this.saihai-=S.cost; this.events.push({k:'saku',kind:k,a}); return true; }
+  /* 落石を落とせる門（櫓門の上から落とすので、門から rockRange m 以内だけ） */
+  rockGate(x,z){ let b=null,bd=this.C.rockRange; for(const g of this.gates){ const d=dist(x,z,g.pos[0],g.pos[1]); if(d<=bd){ bd=d; b=g; } } return b; }
+  /* 火矢を放つ所: 近くの味方の弓隊、いなければ近くの味方、それもいなければ本丸 */
+  fireFrom(x,z){ let b=null,bd=1e9; for(const u of this.live('ally')) if(u.state!=='rout'){ const d=dist(x,z,u.x,u.z)*(u.base==='yumi'?.5:1); if(d<bd){ bd=d; b=u; } }
+    if(b) return [b.x,b.z]; const H=[].concat(this.map.honmaru)[0]; return [(H.x0+H.x1)/2,(H.z0+H.z1)/2]; }
   updRocks(){ for(let i=this.rocks.length-1;i>=0;i--){ const R=this.rocks[i]; if(this.time<R.t) continue; this.rocks.splice(i,1); let hits=0;
-    for(const e of this.live('enemy')){ const d=dist(e.x,e.z,R.x,R.z); if(d>R.r) continue; hits++; const k=1-d/R.r*.5; e.dmg=(e.dmg||0)+(e.men*.13+18*this.C.menScale)*k; e.morale-=25*k; e.slowUntil=this.time+8; }
-    this.events.push({k:'rock',x:R.x,z:R.z,r:R.r,hits}); } }
+    const g=R.gate!==undefined?this.gates[R.gate]:null,combo=!!(g&&g.until>this.time&&g.hp>0),cm=combo?1.5:1;
+    for(const e of this.live('enemy')){ const d=dist(e.x,e.z,R.x,R.z); if(d>R.r) continue; hits++; const k=1-d/R.r*.5;
+      if(R.fire){ e.dmg=(e.dmg||0)+(e.men*.12+16*this.C.menScale)*k; e.morale-=22*k; e.slowUntil=Math.max(e.slowUntil||0,this.time+4); }
+      else { e.dmg=(e.dmg||0)+(e.men*.13+18*this.C.menScale)*k*cm; e.morale-=25*k*cm; e.slowUntil=this.time+8; } }
+    this.events.push({k:R.fire?'fire':'rock',x:R.x,z:R.z,r:R.r,hits,combo:combo&&hits>0}); } }
   updGates(dt){ for(const g of this.gates){ if(!(g.until>0)) continue;
     if(g.hp<=0){ g.until=0; this.events.push({k:'gateBroken',g}); continue; }
     if(this.time>=g.until){ g.until=0; g.hp=0; this.events.push({k:'gateOpen',g}); continue; }
@@ -434,7 +451,7 @@ class Battle{
   retreat(u){ const r=u.route,q=projRoute(r,u.x,u.z),P=[];
     if(q.d>4){ const p=r.pts[Math.max(0,q.i-1)]; const g=this.pathFor(u.x,u.z,p[0],p[1],'enemy'); for(const v of g) P.push(v); }
     for(let i=q.i-1;i>=0;i--) P.push(r.pts[i]); u.path=P; u.goal=r.pts[0]; }
-  nudge(u,dx,dz){ const x=u.x+dx,z=u.z+dz; if(this.grid&&this.grid.blockedAt(x,z,u.side)&&!this.grid.blockedAt(u.x,u.z,u.side)) return; u.x=x; u.z=z; }
+  nudge(u,dx,dz){ const x=u.x+dx,z=u.z+dz,sd=this.mvSide(u); if(this.grid&&this.grid.blockedAt(x,z,sd)&&!this.grid.blockedAt(u.x,u.z,sd)) return; u.x=x; u.z=z; }
   checkEnd(){
     /* どこまで押されたか */
     let br=0; for(const e of this.live('enemy')){ if(!e.route) continue; const L=this.lineS[e.route.id]; for(let i=0;i<L.length;i++) if(L[i]!==null&&e.s>L[i]+3) br=Math.max(br,i+1); }

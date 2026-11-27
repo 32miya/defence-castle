@@ -173,7 +173,8 @@ function makeSoldiers(){
   for(let i=0;i<400;i++) OB.rings.setColorAt(i,COL.ally); OB.rings.count=0; OB.rings.frustumCulled=false; OB.rings.renderOrder=2; IY.scene.add(OB.rings);
   /* 矢 */
   OB.rockMesh=new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1.2,0),new THREE.MeshLambertMaterial({color:0x8a8378}),80); OB.rockMesh.count=0; OB.rockMesh.frustumCulled=false; IY.scene.add(OB.rockMesh);
-  const ag=new THREE.BoxGeometry(.07,.07,1.5); OB.arrowMesh=new THREE.InstancedMesh(ag,new THREE.MeshBasicMaterial({color:0x2a2018}),500); OB.arrowMesh.count=0; OB.arrowMesh.frustumCulled=false; IY.scene.add(OB.arrowMesh);
+  const ag=new THREE.BoxGeometry(.07,.07,1.5); OB.arrowMesh=new THREE.InstancedMesh(ag,new THREE.MeshBasicMaterial({color:0x2a2018}),500); OB.arrowMesh.count=0; OB.arrowMesh.frustumCulled=false;
+  OB.fireMesh=new THREE.InstancedMesh(ag,new THREE.MeshBasicMaterial({color:0xff8a2a,fog:false,toneMapped:false}),200); OB.fireMesh.count=0; OB.fireMesh.frustumCulled=false; IY.scene.add(OB.fireMesh); IY.scene.add(OB.arrowMesh);
 }
 const _m=new THREE.Matrix4(),_q=new THREE.Quaternion(),_v=new THREE.Vector3(),_v2=new THREE.Vector3(),_s=new THREE.Vector3(1,1,1),_z=new THREE.Vector3(0,0,1);
 function setFig(mesh,i,x,y,z,h,sc){ const e=mesh.instanceMatrix.array,o=i*16,c=Math.cos(h)*sc,s=Math.sin(h)*sc; e[o]=c; e[o+1]=0; e[o+2]=-s; e[o+3]=0; e[o+4]=0; e[o+5]=sc; e[o+6]=0; e[o+7]=0; e[o+8]=s; e[o+9]=0; e[o+10]=c; e[o+11]=0; e[o+12]=x; e[o+13]=y; e[o+14]=z; e[o+15]=1; }
@@ -210,16 +211,20 @@ function drawSoldiers(battle,alpha,t){
 const arrows=[];
 function volley(a,b){ if(!showFigs) return; const n=Math.min(7,1+Math.ceil(a.men/(90*SIM.DEF.menScale))); for(let i=0;i<n&&arrows.length<480;i++){ const ox=(Math.random()-.5)*8,oz=(Math.random()-.5)*8;
   const sx=a.x+ox*.5,sz=a.z+oz*.5,ex=b.x+ox,ez=b.z+oz; const d=Math.hypot(ex-sx,ez-sz); arrows.push({sx,sy:H(sx,sz)+3,sz,ex,ey:H(ex,ez)+.5,ez,t:-Math.random()*.25,T:.55+d/45,arc:d*.22}); } }
-function drawArrows(dt){ let n=0; for(let i=arrows.length-1;i>=0;i--){ const A=arrows[i]; A.t+=dt; if(A.t>A.T){ arrows.splice(i,1); continue; } if(A.t<0) continue;
+/* 火矢: 放つ所から、山なりに火のついた矢の雨 */
+function fireVolley(f,x,z){ if(!f) return; for(let i=0;i<26&&arrows.length<480;i++){ const ox=(Math.random()-.5)*14,oz=(Math.random()-.5)*14,sx=f[0]+(Math.random()-.5)*6,sz=f[1]+(Math.random()-.5)*6,ex=x+ox,ez=z+oz,d=Math.hypot(ex-sx,ez-sz);
+  arrows.push({sx,sy:H(sx,sz)+4,sz,ex,ey:H(ex,ez)+.5,ez,t:-Math.random()*.4,T:Math.min(1.25,.6+d/70),arc:Math.max(6,d*.3),fire:true}); } }
+function drawArrows(dt){ let n=0,nf=0; for(let i=arrows.length-1;i>=0;i--){ const A=arrows[i]; A.t+=dt; if(A.t>A.T){ arrows.splice(i,1); continue; } if(A.t<0) continue;
   const k=A.t/A.T,x=A.sx+(A.ex-A.sx)*k,z=A.sz+(A.ez-A.sz)*k,y=A.sy+(A.ey-A.sy)*k+A.arc*4*k*(1-k);
   const k2=Math.min(1,k+.02),x2=A.sx+(A.ex-A.sx)*k2,z2=A.sz+(A.ez-A.sz)*k2,y2=A.sy+(A.ey-A.sy)*k2+A.arc*4*k2*(1-k2);
-  _v.set(x2-x,y2-y,z2-z).normalize(); _q.setFromUnitVectors(_z,_v); _m.compose(_v2.set(x,y,z),_q,_s); OB.arrowMesh.setMatrixAt(n++,_m); }
-  OB.arrowMesh.count=n; if(n) OB.arrowMesh.instanceMatrix.needsUpdate=true; }
+  _v.set(x2-x,y2-y,z2-z).normalize(); _q.setFromUnitVectors(_z,_v);
+  if(A.fire){ _m.compose(_v2.set(x,y,z),_q,_s.set(3,3,1.3)); OB.fireMesh.setMatrixAt(nf++,_m); _s.set(1,1,1); } else { _m.compose(_v2.set(x,y,z),_q,_s); OB.arrowMesh.setMatrixAt(n++,_m); } }
+  OB.arrowMesh.count=n; if(n) OB.arrowMesh.instanceMatrix.needsUpdate=true; OB.fireMesh.count=nf; if(nf) OB.fireMesh.instanceMatrix.needsUpdate=true; }
 
 /* 落石の岩と土けむり */
 const rockFx=[],dusts=[];
 function dropRocks(x,z){ for(let i=0;i<14;i++){ const a=Math.random()*Math.PI*2,r=Math.random()*9; rockFx.push({x:x+Math.cos(a)*r,z:z+Math.sin(a)*r,t:-Math.random()*.25,T:.9,life:4,s:.7+Math.random()*.9,rx:Math.random()*6,ry:Math.random()*6}); } }
-function dust(x,z,r){ const m=new THREE.Mesh(new THREE.RingGeometry(.5,3,32).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:0xa08a68,transparent:true,opacity:.7,depthWrite:false,fog:false})); m.position.set(x,H(x,z)+.6,z); m.renderOrder=3; IY.scene.add(m); dusts.push({m,t:0,r}); }
+function dust(x,z,r,col){ const m=new THREE.Mesh(new THREE.RingGeometry(.5,3,32).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:col||0xa08a68,transparent:true,opacity:.7,depthWrite:false,fog:false})); m.position.set(x,H(x,z)+.6,z); m.renderOrder=3; IY.scene.add(m); dusts.push({m,t:0,r}); }
 function drawRocks(dt){ if(!OB.rockMesh) return; let n=0; for(let i=rockFx.length-1;i>=0;i--){ const R=rockFx[i]; R.t+=dt; if(R.t>R.T+R.life){ rockFx.splice(i,1); continue; } if(R.t<0) continue;
     const k=Math.min(1,R.t/R.T),g=H(R.x,R.z),y=g+R.s*.6+(1-k*k)*28; _q.setFromEuler(new THREE.Euler(R.rx+R.t*(k<1?6:0),R.ry,0)); const sc=R.t>R.T+R.life-.6?Math.max(.01,(R.T+R.life-R.t)/.6)*R.s:R.s; _m.compose(_v2.set(R.x,y,R.z),_q,_s.set(sc,sc,sc)); OB.rockMesh.setMatrixAt(n++,_m); }
   _s.set(1,1,1); OB.rockMesh.count=n; if(n) OB.rockMesh.instanceMatrix.needsUpdate=true;
@@ -247,7 +252,7 @@ root.innerHTML=`
 <div id="obView"></div>
 <div id="obMarks"></div>
 <div id="obIcons"></div>
-<header id="obTop">
+<div id="obCut" aria-hidden="true"></div><header id="obTop">
   <div class="obBox obTitle"><b>${MAP.title}</b><span id="obGoal">${MAP.goal} <em id="obTime">--:--</em></span></div>
   <div id="obWave" class="obBox">出陣前</div>
   <div class="obBtns"><button id="obSnd" class="obBtn" aria-label="効果音">🔊</button><button id="obSpd" class="obBtn" aria-label="速さ">×1</button><button id="obPause" class="obBtn" aria-label="一時停止">❚❚</button></div>
@@ -269,7 +274,7 @@ root.innerHTML=`
   </div>
 </section>
 <div id="obSaku"><div class="sg"><b>采配</b><span id="obSG"></span></div>
-  <button data-s="kobu"><b>鼓舞</b><small>采配1</small></button><button data-s="rakuseki"><b>落石</b><small>采配2</small></button><button data-s="gate"><b>門を閉ざす</b><small>采配2</small></button></div>
+  <button data-s="kobu"><b>鼓舞</b><small>采配1</small></button><button data-s="rakuseki"><b>落石</b><small>采配2・門</small></button><button data-s="hiya"><b>火矢</b><small>采配2</small></button><button data-s="gate"><b>門を閉ざす</b><small>采配2</small></button></div>
 <div id="obGates"></div>
 <footer id="obCards"></footer>
 <div id="obHud" hidden></div>
@@ -349,8 +354,8 @@ function showOrder(){ const u=UI.sel; $('obPrompt').hidden=true; $('obOrder').hi
   const S=B.skillOf(u),w=B.skillWait(u),act=B.buff(u,u.type),bt=$('obSkillB');
   bt.querySelector('b').textContent=S.name; bt.querySelector('small').textContent=act?'発動中':w>0?'あと'+Math.ceil(w)+'秒':'特技・使える'; bt.disabled=w>0; bt.title=S.text; }
 const MODE_T={hold:'守る場所をタップ（◆の配置場所は地形の効果あり）',reinforce:'援軍に行く味方の部隊をタップ',intercept:'狙う敵の部隊をタップ',
-  kobu:'鼓舞する味方の部隊をタップ',rakuseki:'石を落とす場所をタップ（赤い円の中の敵に効く）',gate:'閉じる門をタップ'};
-function startMode(m){ UI.mode=m; UI.pend=null; clearPrev(); $('obOrder').hidden=true; $('obPrompt').hidden=false; $('obHere').hidden=m!=='hold';
+  kobu:'鼓舞する味方の部隊をタップ',rakuseki:'石を落とす場所をタップ（櫓門の上から落とすので、黄色い円＝門のまわりだけ）',hiya:'火矢を放つ場所をタップ（どこでも。城内の弓から放つ）',gate:'閉じる門をタップ'};
+function startMode(m){ UI.mode=m; UI.pend=null; clearPrev(); if(m==='rakuseki') rockZones(); $('obOrder').hidden=true; $('obPrompt').hidden=false; $('obHere').hidden=m!=='hold';
   $('obPromptT').textContent=MODE_T[m]; $('obPromptI').textContent=''; $('obOK').disabled=true; sfx('click'); }
 /* 選んだ行き先・相手を仮決めして、ルートを描く */
 function setPend(p){ UI.pend=p; $('obOK').disabled=false; sfx('click'); drawPreview(); }
@@ -360,6 +365,7 @@ function confirmPend(){ const m=UI.mode,p=UI.pend; if(!m||!p) return; let ok=fal
   else if(m==='intercept') ok=B.order(UI.sel.id,{kind:'intercept',target:p.target.id});
   else if(m==='kobu') ok=B.useSaku('kobu',{target:p.target.id});
   else if(m==='rakuseki') ok=B.useSaku('rakuseki',{x:p.x,z:p.z});
+  else if(m==='hiya') ok=B.useSaku('hiya',{x:p.x,z:p.z});
   else if(m==='gate') ok=B.useSaku('gate',{gate:p.gate});
   if(!ok) toast('その指示は出せない','info'); else if(UI.sel) sayOrder(m); finish(); }
 function issue(o){ if(!UI.sel) return finish(); const ok=B.order(UI.sel.id,o); if(!ok) toast('その指示は出せない','info'); else sayOrder(o.kind); finish(); }
@@ -371,6 +377,8 @@ function tapSaku(k){ if(!B||B.state!=='run'||bench) return; if(B.saihai<SAKU[k].
   finish(); UI.sel=null; if(!UI.pauseManual) UI.pauseOrder=true; startMode(k); $('obPromptT').textContent=SAKU[k].name+'：'+MODE_T[k]; }
 $('obOrder').querySelectorAll('button[data-o]').forEach(b=>b.onclick=()=>{ const o=b.dataset.o; if(o==='skill') useSkill(); else if(o==='auto'||o==='retreat') issue({kind:o}); else startMode(o); });
 $('obSaku').querySelectorAll('button[data-s]').forEach(b=>b.onclick=()=>tapSaku(b.dataset.s));
+/* 采配の帯は、部隊の札（高さが画面で変わる）のすぐ上に置く */
+if(window.ResizeObserver) new ResizeObserver(()=>{ const h=$('obCards').getBoundingClientRect().height; if(h>10) $('obSaku').style.bottom=(h+6)+'px'; }).observe($('obCards'));
 $('obOClose').onclick=finish; $('obCancel').onclick=finish; $('obOK').onclick=confirmPend;
 $('obHere').onclick=()=>{ const u=UI.sel; if(u) issue({kind:'hold',x:u.x,z:u.z}); };
 $('obPause').onclick=()=>{ if(!B||B.state!=='run') return; sfx('click'); UI.pauseManual=!UI.pauseManual; if(!UI.pauseManual) finish(); };
@@ -379,7 +387,8 @@ $('obSpd').onclick=()=>{ UI.speed=UI.speed===1?2:UI.speed===2?4:1; $('obSpd').te
 $('obSnd').onclick=()=>{ const on=SND.toggle(); $('obSnd').textContent=on?'🔊':'🔇'; if(on) sfx('click'); };
 function tapGround(x,z){
   if(UI.mode==='hold'){ const sl=B.slotNear(x,z,9); setPend(sl?{x:sl.pos[0],z:sl.pos[1],slot:sl}:{x,z}); return; }
-  if(UI.mode==='rakuseki'){ setPend({x,z}); return; }
+  if(UI.mode==='rakuseki'){ if(!B.rockGate(x,z)){ toast('落石は門のまわり（黄色い円の中）だけ。離れた所には火矢を','info'); return; } setPend({x,z}); return; }
+  if(UI.mode==='hiya'){ setPend({x,z}); return; }
   if(UI.mode==='gate'){ let b=-1,bd=18; B.gates.forEach((g,i)=>{ const d=Math.hypot(g.pos[0]-x,g.pos[1]-z); if(d<bd&&B.gateOpenAt(g)){ bd=d; b=i; } }); if(b>=0) setPend({gate:b}); return; }
   if(UI.sel&&!UI.mode) finish(); }
 
@@ -397,7 +406,8 @@ function ribbon(pts,w,color,op,arrow){ /* pts: [[x,z],...] を1.5m刻みにし�
   const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color,transparent:true,opacity:op||.9,depthTest:false,depthWrite:false,side:THREE.DoubleSide,fog:false,toneMapped:false})); m.renderOrder=20; m.frustumCulled=false; PREV.add(m); return P; }
 function circle(x,z,r,color,w){ const pts=[]; for(let i=0;i<=40;i++){ const a=i/40*Math.PI*2; pts.push([x+Math.cos(a)*r,z+Math.sin(a)*r]); } ribbon(pts,w||.5,color,.85); }
 function plen(P){ let L=0; for(let i=1;i<P.length;i++) L+=Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1]); return L; }
-function drawPreview(){ clearPrev(); const m=UI.mode,p=UI.pend,u=UI.sel; if(!p) return; let info='';
+function rockZones(){ for(const g of B.gates) circle(g.pos[0],g.pos[1],B.C.rockRange,B.gateOpenAt(g)?0xffcf5a:0xff8a3a,.35); }
+function drawPreview(){ clearPrev(); const m=UI.mode,p=UI.pend,u=UI.sel; if(m==='rakuseki') rockZones(); if(!p) return; let info='';
   const gold=0xffcf5a,red=0xff5a40,blue=0x8fb7ff;
   if(u&&(m==='hold'||m==='reinforce'||m==='intercept')){
     const tx=p.target?p.target.x:p.x,tz=p.target?p.target.z:p.z;
@@ -410,7 +420,9 @@ function drawPreview(){ clearPrev(); const m=UI.mode,p=UI.pend,u=UI.sel; if(!p) 
       info=`${T[e.type].name} ${e.men}人（${adv}）・ぶつかるまで 約${sec}秒（敵も動きます）`; }
     else if(m==='reinforce'){ circle(tx,tz,7,blue); info=`${p.target.name}のもとへ・到着まで 約${sec}秒`; }
     else { circle(tx,tz,6,gold); info=(p.slot?`◆${p.slot.name}（${p.slot.kind==='gate'?'門':p.slot.kind==='yagura'?'櫓：弓の射程1.35倍':'石垣：弓の射程1.25倍'}）・`:'')+`到着まで 約${sec}秒`; } }
-  else if(m==='rakuseki'){ circle(p.x,p.z,11,red,.7); const n=B.live('enemy').filter(e=>Math.hypot(e.x-p.x,e.z-p.z)<11).length; info=n?`いま円の中に敵 ${n}部隊`:'円の中に敵はいない（通り道に置くのも手）'; }
+  else if(m==='rakuseki'){ circle(p.x,p.z,11,red,.7); const n=B.live('enemy').filter(e=>Math.hypot(e.x-p.x,e.z-p.z)<11).length,g=B.rockGate(p.x,p.z),cl=g&&!B.gateOpenAt(g);
+    info=(n?`いま円の中に敵 ${n}部隊`:'円の中に敵はいない（通り道に置くのも手）')+(cl?`<br><b class="good">${g.name}は閉じている：落石1.5倍！</b>`:`<br><small>先に「門を閉ざす」で足止めすると1.5倍</small>`); }
+  else if(m==='hiya'){ const f=B.fireFrom(p.x,p.z); ribbon([[f[0],f[1]],[p.x,p.z]],.45,0xff8a3a,.7,true); circle(p.x,p.z,10,0xff6a2a,.7); const n=B.live('enemy').filter(e=>Math.hypot(e.x-p.x,e.z-p.z)<10).length; info=n?`いま円の中に敵 ${n}部隊`:'円の中に敵はいない'; }
   else if(m==='gate'){ const g=B.gates[p.gate]; circle(g.pos[0],g.pos[1],g.r+3,red); info=`${g.name}を${B.C.gateTime}秒閉じる`; }
   else if(m==='kobu'){ const t=p.target; circle(t.x,t.z,7,blue); info=`${t.name}（士気${Math.round(t.morale)}${t.state==='rout'?'・敗走中':''}）`; }
   $('obPromptI').innerHTML=info; }
@@ -483,13 +495,19 @@ const vol=()=>Math.max(.25,Math.min(1,140/CAM.dist));
 }
 /* ================= お知らせ ================= */
 function toast(msg,kind){ const t=$('obToast'),d=el('div','obT '+(kind||''),msg); t.appendChild(d); while(t.children.length>4) t.firstChild.remove(); setTimeout(()=>d.classList.add('out'),kind==='big'?3800:2600); setTimeout(()=>d.remove(),kind==='big'?4600:3300); }
+/* カットイン: 特別な攻撃のとき、画面の上のほうに絵を小さく出す（3Dの落石や火矢を隠さない） */
+const CUT={charge:'cut_charge',rock:'cut_rock',fire:'cut_fire',yari:'cut_yari'},cutPre={};
+function preloadCuts(){ for(const k in CUT) if(!cutPre[k]){ cutPre[k]=new Image(); cutPre[k].src=GAME+'battle/img/'+CUT[k]+'.webp'; } }
+function cutIn(k,label){ if(bench) return; preloadCuts(); const box=$('obCut'); box.innerHTML=`<img src="${GAME}battle/img/${CUT[k]}.webp" alt=""><b>${label}</b>`;
+  box.classList.remove('on'); void box.offsetWidth; box.classList.add('on'); clearTimeout(box._t); box._t=setTimeout(()=>box.classList.remove('on'),1900); }
 function onEvents(b){
   for(const e of b.events.splice(0)){
     if(e.k==='volley'){ volley(e.a,e.b); if(!bench) sfx('arrow',.22,vol()*(e.a.side==='ally'?1:.75)); }
-    else if(e.k==='skill'){ sfx(e.u.base==='kiba'?'charge':'taiko'); }
+    else if(e.k==='skill'){ sfx(e.u.base==='kiba'?'charge':'taiko'); if(e.u.side==='ally') cutIn(e.u.base==='kiba'?'charge':e.u.base==='yari'?'yari':'fire',B.skillOf(e.u).name+'！'); }
     else if(e.k==='chargeHit'){ sfx('clash',.1,1); sfx('taiko',.2,0,.7); }
-    else if(e.k==='saku'){ if(e.kind==='kobu'){ sfx('taiko'); sfx('horagai',0,.8,.6); toast('鼓舞！士気が上がった','good'); } else if(e.kind==='rakuseki'){ dropRocks(e.a.x,e.a.z); sfx('taiko'); } else if(e.kind==='gate'){ sfx('gate'); toast(`${B.gates[e.a.gate].name}を閉ざした`,'good'); } }
-    else if(e.k==='rock'){ dust(e.x,e.z,e.r); sfx('rumble'); if(e.hits) toast(`落石！敵${e.hits}部隊に当たった`,'good'); }
+    else if(e.k==='saku'){ if(e.kind==='kobu'){ sfx('taiko'); sfx('horagai',0,.8,.6); toast('鼓舞！士気が上がった','good'); } else if(e.kind==='rakuseki'){ dropRocks(e.a.x,e.a.z); sfx('taiko'); cutIn('rock','落石！'); } else if(e.kind==='hiya'){ fireVolley(e.a.from,e.a.x,e.a.z); sfx('arrow',0,1); sfx('arrow',.25,1); cutIn('fire','火矢！'); } else if(e.kind==='gate'){ sfx('gate'); toast(`${B.gates[e.a.gate].name}を閉ざした`,'good'); } }
+    else if(e.k==='rock'){ dust(e.x,e.z,e.r); sfx('rumble'); if(e.combo) toast(`<b>門で足止めして落石！</b>敵${e.hits}部隊に1.5倍の損害`,'big'); else if(e.hits) toast(`落石！敵${e.hits}部隊に当たった`,'good'); }
+    else if(e.k==='fire'){ dust(e.x,e.z,e.r,0xff7a2a); dust(e.x,e.z,e.r*.6,0xffc04a); sfx('clash',0,.4); if(e.hits) toast(`火矢！敵${e.hits}部隊に当たった`,'good'); }
     else if(e.k==='gateBroken'&&!bench){ sfx('gateBreak'); toast(`${e.g.name}が破られた！`,'warn'); }
     else if(e.k==='gateOpen'&&!bench){ sfx('gate'); toast(`${e.g.name}が開いた`,'info'); }
     else if(e.k==='wave'){ sfx('horagai'); sfx('taiko',0,1.6); toast(`<b>第${'一二三四五'[e.i]}波　${e.label}</b>${e.text||''}`,'big'); }
@@ -520,7 +538,7 @@ function armyFor(){ const sv=loadSave(),base=SIM.baseArmy(MAP);
   const carried=!!(sv.armyFor===MAP.id&&(sv.armyTotal||(sv.army&&sv.army.length)));
   const total=carried?(sv.armyTotal||sv.army.reduce((t,a)=>t+a.men,0)):base;
   return {army:SIM.formArmy(MAP,total),carried,total}; }
-function startBattle(){
+function startBattle(){ preloadCuts();
   Object.assign(CAM,MAP.camera||{});
   clearUnits(); bench=null; sunsetDone=false; IY.applyTime(1); OB.shadowDirty=3;
   const AR=armyFor(); B=new SIM.Battle(MAP,{army:AR.army,h:H,block:OB.block,water:IY.isWater,floor:IY.floorH}); drawRoutes(B);
@@ -685,7 +703,7 @@ function frame(dt,now){
   placeCamera(dt);
   const alpha=B?Math.min(1,B.acc/B.C.tick):1;
   if(B){ drawSoldiers(B,paused()?1:alpha,clock); drawArrows(paused()?0:dt*UI.speed); }
-  else { for(const k in SOL) SOL[k].tm.count=SOL[k].nm.count=0; OB.rings.count=0; OB.arrowMesh.count=0; }
+  else { for(const k in SOL) SOL[k].tm.count=SOL[k].nm.count=0; OB.rings.count=0; OB.arrowMesh.count=0; OB.fireMesh.count=0; }
   /* 画面 */
   root.classList.toggle('isPaused',!!B&&paused()&&$('obModal').hidden);
   $('obPaused').hidden=!(UI.pauseManual&&B&&B.state==='run'&&!UI.sel&&!UI.mode);
