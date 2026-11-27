@@ -566,15 +566,44 @@ function showResult(){
   const sv=loadSave(); sv[MAP.id]=Object.assign(sv[MAP.id]||{},{played:(sv[MAP.id]&&sv[MAP.id].played||0)+1}); if(win){ sv[MAP.id].cleared=true; sv[MAP.id].bestLoss=Math.min(sv[MAP.id].bestLoss===undefined?100:sv[MAP.id].bestLoss,lossP); sv.army=nx.army.map(a=>({id:a.id,gen:a.gen,name:a.name,type:a.type,men:a.men})); sv.armyTotal=nx.total; sv.next=MAP.next&&MAP.next.castle; sv.armyFor=MAP.next&&MAP.next.id; } saveSave(sv);
   if(win) IY.applyTime(MAP.goal.includes('日没')?3:2); OB.shadowDirty=3;
   const M=$('obModal'); M.hidden=false; $('obOrder').hidden=true; $('obPrompt').hidden=true;
-  M.innerHTML=`<div class="obSheet ${win?'win':'lose'}"><p class="obEra">${MAP.castle}</p><h1>${win?'勝利':'落城'}</h1><p class="obSub">${r.why}（${fmt(r.time)}）</p>
-  <div class="obCond"><div><small>味方の損害</small><b>${lossP}%</b>（${r.allyLost}／${r.allyMen0}人）</div><div><small>敵の損害</small><b>${r.enemyLost}人</b>／${r.enemyMen}人</div><div><small>押された所</small><b>${r.breached?MAP.lines[r.breached-1].short+'まで':'防衛線は無事'}</b></div></div>
-  ${win?`<h2>次の合戦（${MAP.next?MAP.next.castle:''}）への持ち越し</h2>
-  <table class="obTab"><tr><th>部隊</th><th>合戦前</th><th>残り</th></tr>${r.army.map(a=>`<tr><td><span class="k t-${SIM.baseOf(a.type)}">${G(a.type)}</span>${a.name}</td><td>${a.men0}</td><td>${a.men}</td></tr>`).join('')}
-  <tr class="sum"><td>残りの兵</td><td></td><td>${nx.left}</td></tr><tr class="sum"><td>後詰め（合戦前の3割）</td><td></td><td>+${nx.reinf}</td></tr>${nx.bonus?`<tr class="sum"><td>ほうびの後詰め</td><td></td><td>+${nx.bonus}</td></tr>`:''}<tr class="sum tot"><td>次の城の兵</td><td></td><td>${nx.total}</td></tr></table>
-  <p class="obNote">${nx.notes.join('<br>')||'損害が2割以下なら、ほうびの後詰め（1割5分）が加わります'}<br>次の城では、この兵を「門の数＋3」部隊${MAP.next&&MAP.next.units?'（'+MAP.next.units+'部隊）':''}に自動で分けて戦います。敵の兵数も城ごとに増えます。</p>`:
-  `<p class="obNote">本丸までの道は大手と搦手の2つ。三すくみを見て、門で足止めしながら弓で削るのがコツです。</p>`}
-  <div class="obAct">${win&&MAP.next&&MAP.next.url?`<a class="obBtn obGo" href="${MAP.next.url}">次の城へ（${MAP.next.castle}）</a>`:''}<button class="obBtn${win&&MAP.next&&MAP.next.url?'':' obGo'}" id="obAgain">もう一度</button><button class="obBtn" id="obToBrief">出陣前の画面へ</button><button class="obBtn" id="obToSt">城選びへ</button></div></div>`;
-  $('obAgain').onclick=startBattle; $('obToBrief').onclick=()=>{ leaveBattle(); showBrief(); }; $('obToSt').onclick=goStages;
+  M.className='obModal obResM'; const IMG=GAME+'battle/img/';
+  const title=MAP.castle+'の戦い',hasNext=win&&MAP.next&&MAP.next.url;
+  const breach=r.breached?MAP.lines[r.breached-1].short+'まで押された':'防衛線は無事';
+  /* 星: 損害2割以下で3つ、5割以下で2つ、それより多いと1つ */
+  const stars=lossP<=20?3:lossP<=50?2:1,leftP=Math.max(0,100-lossP);
+  const sub=`<span class="obR-btns">${hasNext?'<button id="obAgain">もう一度</button>':''}<button id="obToBrief">出陣前の画面へ</button></span>`;
+  let body;
+  if(win){
+    const rows=r.army.map(a=>{ const b=SIM.baseOf(a.type),bb=b==='teppo'?'yumi':b; return `<div class="obR-row" style="background-image:url(${IMG}res_row_${bb}.webp)">
+      <span class="nm"><b>${a.name}</b><small>${(SIM.TYPES[a.type]||{}).name||''}${a.gen?'・'+a.gen:''}</small></span><span class="mn"><b>${a.men}</b><small>／${a.men0}人</small></span></div>`; }).join('');
+    body=`<div class="obR-pg win" style="background-image:url(${IMG}res_win.webp)">
+      <div class="obR-ttl" style="font-size:calc(var(--u)*${Math.min(44,320/title.length).toFixed(1)})">${title}</div>
+      <div class="obR-big">勝利！</div>
+      <div class="obR-castle"><b>${MAP.castle}</b><small>${fmt(r.time)} 守り抜いた</small></div>
+      <div class="obR-barL">残った兵 ${leftP}%</div><div class="obR-bar"><i style="width:${leftP}%"></i></div>
+      <div class="obR-eval"><small>評価</small><b>敵の損害 ${Math.round(r.enemyLost)}人</b><small>${breach}</small></div>
+      ${[0,1,2].map(k=>`<span class="obR-star s${k}${k<stars?' on':''}">★</span>`).join('')}
+      <div class="obR-hd">我が軍の残り兵</div>
+      <div class="obR-rows">${rows}</div>
+      <div class="obR-rw"><b>${MAP.next?MAP.next.castle+'へ持ち越す兵':'持ち越す兵'}</b>
+        <span>残り ${nx.left} ＋ 後詰め ${nx.reinf}${nx.bonus?' ＋ ほうび '+nx.bonus:''}</span><span class="tot">次の城の兵 <em>${nx.total}</em>人${MAP.next&&MAP.next.units?'（'+MAP.next.units+'部隊）':''}</span>
+        <small>${nx.notes.join('　')||'損害が2割以下なら、ほうびの後詰めが加わります'}</small></div>
+      ${hasNext?`<a class="obR-red" href="${MAP.next.url}">次の城へ</a>`:`<button class="obR-red" id="obAgain2">もう一度</button>`}
+      <button class="obR-blue" id="obToSt">城選び</button>${sub}</div>`;
+  } else {
+    body=`<div class="obR-pg lose" style="background-image:url(${IMG}res_lose.webp)">
+      <div class="obR-ttl" style="font-size:calc(var(--u)*${Math.min(44,320/title.length).toFixed(1)})">${title}</div>
+      <div class="obR-lp"><div class="obR-fall">落 城</div><p class="why">${r.why}（${fmt(r.time)}）</p>
+        <div class="obR-st"><div><small>味方の損害</small><b>${lossP}%</b><small>${r.allyLost}／${r.allyMen0}人</small></div><div><small>敵の損害</small><b>${Math.round(r.enemyLost)}</b><small>／${Math.round(r.enemyMen)}人</small></div><div><small>押された所</small><b>${r.breached?MAP.lines[r.breached-1].short:'なし'}</b><small>${r.breached?'まで':''}</small></div></div>
+        <p class="hint">${MAP.hint||'三すくみを見て、門で足止めしながら弓で削るのがコツです。'}</p></div>
+      <button class="obR-red" id="obAgain2">もう一度</button><button class="obR-blue" id="obToSt">城選び</button>${sub}</div>`;
+  }
+  M.innerHTML=body;
+  /* 画像（1024×1536）を画面に収め、文字は画像の大きさに合わせる */
+  const fit=()=>{ const pg=M.querySelector('.obR-pg'); if(!pg) return; const w=Math.min(innerWidth-8,(innerHeight-8)*1024/1536,560); pg.style.setProperty('--u',(w/1024)+'px'); };
+  fit(); M._fit&&removeEventListener('resize',M._fit); M._fit=fit; addEventListener('resize',fit);
+  if($('obAgain2')) $('obAgain2').onclick=startBattle;
+  if($('obAgain')) $('obAgain').onclick=startBattle; $('obToBrief').onclick=()=>{ leaveBattle(); showBrief(); }; $('obToSt').onclick=goStages;
 }
 
 /* ================= タイトル・城選び・遊び方（お城さんぽとは別のゲームとしての入口） ================= */
