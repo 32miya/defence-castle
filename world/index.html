@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#120d24">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="description" content="世界の名城に押し寄せる魔物の群れを、塔・城壁・投石機で迎え撃つタワーディフェンス">
+<title>世界さんぽディフェンス</title>
+<style>
+:root{--gold:#e2b54a;--tx:#efe8f6;--pa:rgba(18,14,34,.86);--ln:rgba(226,214,255,.2)}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#0d0a1c;color:var(--tx);font:500 14px/1.6 "Hiragino Sans","Noto Sans JP",system-ui,sans-serif;-webkit-text-size-adjust:100%}
+body{overflow:hidden;-webkit-user-select:none;user-select:none}
+button,a{font:inherit;color:inherit}
+.mc{font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif}
+/* 背景: 月夜の城と竜（このゲームのために描いた影絵） */
+.sky{position:fixed;inset:0;background:linear-gradient(180deg,#07061a 0%,#1a1440 38%,#3d2a6e 62%,#7a4a8a 78%,#c27a7a 90%)}
+.stars{position:fixed;inset:0;background-image:radial-gradient(1px 1px at 12% 18%,#fff,transparent),radial-gradient(1px 1px at 28% 8%,#dfe,transparent),radial-gradient(1.5px 1.5px at 44% 22%,#fff,transparent),radial-gradient(1px 1px at 63% 12%,#fff,transparent),radial-gradient(1px 1px at 79% 26%,#eef,transparent),radial-gradient(1.5px 1.5px at 91% 9%,#fff,transparent),radial-gradient(1px 1px at 7% 35%,#fff,transparent),radial-gradient(1px 1px at 55% 33%,#fff,transparent),radial-gradient(1px 1px at 86% 40%,#fff,transparent),radial-gradient(1px 1px at 35% 41%,#ddf,transparent);animation:tw 5s ease-in-out infinite alternate}
+@keyframes tw{to{opacity:.55}}
+.moon{position:fixed;right:12%;top:9%;width:24vmin;height:24vmin;border-radius:50%;background:radial-gradient(circle at 40% 38%,#fffbe8 0%,#f3e7c0 45%,#d8c890 70%);box-shadow:0 0 60px 18px rgba(255,240,200,.28)}
+#bg{position:fixed;inset:0;z-index:0}
+#bg svg{position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:max(100%,900px);height:auto}
+#bg::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 50% 42%,transparent 0%,rgba(8,5,18,.3) 55%,rgba(6,4,14,.85) 100%)}
+.drag{animation:fly 16s linear infinite}
+@keyframes fly{from{transform:translate(-160px,30px)}to{transform:translate(1060px,-40px)}}
+.scr{position:fixed;inset:0;z-index:2;display:flex;align-items:center;justify-content:center;padding:calc(env(safe-area-inset-top,0px) + 12px) 12px calc(env(safe-area-inset-bottom,0px) + 12px);overflow:auto}
+.scr[hidden]{display:none}
+/* タイトル */
+#title{flex-direction:column;text-align:center;gap:14px}
+.logo{position:relative;padding:4px 18px 10px;animation:in 1s ease-out}
+.logo small{display:block;color:#d9c8ff;font-size:13px;letter-spacing:.55em;padding-left:.55em;margin-bottom:8px;text-shadow:0 1px 4px #000}
+.logo h1{margin:0;color:#f6ecff;font-weight:800;line-height:1.15;text-shadow:0 3px 0 #000,0 0 30px rgba(141,107,216,.75)}
+.logo h1 span{display:block;white-space:nowrap}
+.logo .l1{font-size:clamp(20px,6vw,34px);letter-spacing:.5em;padding-left:.5em;color:#e6d3ff}
+.logo .l2{font-size:clamp(34px,10.5vw,64px);letter-spacing:.1em;color:#ffe9a8;text-shadow:0 3px 0 #000,0 0 28px rgba(226,181,74,.6)}
+.logo::after{content:"";display:block;height:2px;margin:12px auto 0;width:84%;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+.lead{margin:0;font-size:13px;line-height:1.9;text-shadow:0 1px 4px #000,0 0 12px rgba(0,0,0,.7)}
+.menu{display:flex;flex-direction:column;gap:8px;width:min(320px,90%);margin-top:6px;animation:in 1.3s ease-out}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--ln);background:var(--pa);text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.btn:active{transform:scale(.97)}
+.go{background:linear-gradient(180deg,#7a49cf,#3b2378);border-color:var(--gold);font-weight:700;box-shadow:0 4px 20px rgba(110,60,200,.45)}
+.menu>.btn{min-height:52px;font-size:17px;letter-spacing:.2em}
+.sub{display:flex;gap:6px} .sub .btn{flex:1;font-size:12.5px;min-height:40px}
+.prog{margin:2px 0 0;font-size:12px;color:#e6d3ff;text-shadow:0 1px 4px #000}
+@keyframes in{from{opacity:0;transform:translateY(10px)}}
+/* シート */
+.sheet{width:min(560px,100%);max-height:100%;overflow:auto;-webkit-overflow-scrolling:touch;background:rgba(20,16,38,.95);border:1px solid #5d4c94;border-radius:16px;padding:16px;box-shadow:0 12px 40px rgba(0,0,0,.6);animation:in .4s ease-out}
+.sheet h1{margin:2px 0;font-size:24px;letter-spacing:.12em;color:#f6ecff}
+.sheet h2{margin:14px 0 6px;font-size:15px;letter-spacing:.08em;border-bottom:1px solid var(--ln);padding-bottom:4px}
+.sheet p{margin:6px 0}
+.era{font-size:11px;opacity:.7;letter-spacing:.2em;margin:0} .note{font-size:12.5px;opacity:.88}
+.st{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:5px}
+.st li{display:grid;grid-template-columns:auto 1fr auto;grid-template-areas:"no b em" "no s em";gap:0 10px;align-items:center;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid var(--ln)}
+.st .no{grid-area:no;font-size:11px;line-height:1.2;color:#cdbaf5;width:4.4em;text-align:center}
+.st b{grid-area:b;font-size:16px;letter-spacing:.06em} .st small{grid-area:s;font-size:11px;opacity:.75}
+.st em{grid-area:em;font-style:normal;font-size:11px;text-align:right;opacity:.8}
+.st li.ok{cursor:pointer;border-color:var(--gold);background:rgba(90,50,170,.35)} .st li.ok em{color:#ffd98a;opacity:1;font-weight:700}
+.st li.ok:active{transform:scale(.99)} .st li.lock{opacity:.5} .st li.cl em{color:#9be38a}
+.st .star{color:#ffd24a;letter-spacing:.05em;font-size:13px}.st .star s{color:#4a4366;text-decoration:none}
+.act{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px} .act .btn{flex:1;min-width:110px}
+.tw{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin:6px 0}
+.tw div{display:flex;gap:8px;align-items:flex-start;padding:8px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid var(--ln);font-size:12px;line-height:1.5}
+.tw svg{width:30px;height:30px;flex:none;color:#e9dcff}
+.tw b{display:block;font-size:13.5px;color:#ffd98a} .tw strong{color:#ffb070}
+.en{display:flex;flex-wrap:wrap;gap:4px 6px;margin:6px 0;font-size:12px}
+.en span{padding:2px 8px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid var(--ln)}
+.en span.air{border-color:#9a7ae0}
+.toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 16px);transform:translateX(-50%);z-index:9;background:rgba(18,14,34,.94);border:1px solid var(--gold);border-radius:10px;padding:8px 14px;font-size:13px;transition:opacity .5s}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<div class="sky"></div><div class="stars"></div><div class="moon"></div>
+<div id="bg" aria-hidden="true">
+<svg viewBox="0 0 900 520" preserveAspectRatio="xMidYMax meet">
+  <!-- 飛ぶ竜 -->
+  <g class="drag" fill="#140c22" opacity=".9"><g transform="translate(0 150) scale(.9)">
+    <path d="M0 22 C20 14 40 14 58 20 L76 16 L84 10 L86 18 L78 24 L58 28 C40 30 20 30 0 22Z"/>
+    <path d="M34 20 C30 0 18 -14 2 -18 C14 -8 18 2 20 10 C12 2 2 0 -8 2 C4 6 14 12 26 22Z"/>
+    <path d="M44 22 C52 4 66 -8 84 -10 C72 0 66 8 64 14 C72 8 82 8 92 10 C80 14 66 18 52 24Z"/>
+    <path d="M0 22 L-26 30 L-14 22 L-30 18Z"/></g></g>
+  <!-- 遠くの山 -->
+  <path d="M0 390 L110 330 L200 365 L300 300 L410 352 L500 316 L610 362 L700 322 L800 356 L900 318 L900 520 L0 520Z" fill="#2a1f4a" opacity=".75"/>
+  <path d="M0 420 L140 380 L250 410 L360 372 L490 412 L620 380 L740 408 L900 372 L900 520 L0 520Z" fill="#1e1638"/>
+  <!-- 岩山と城（尖塔・城壁・円塔） -->
+  <path d="M150 520 Q260 440 350 410 L560 404 Q680 430 780 520Z" fill="#150f28"/>
+  <g fill="#0f0a1e">
+    <rect x="352" y="352" width="200" height="56"/>
+    <g><rect x="340" y="340" width="10" height="14"/><rect x="362" y="340" width="10" height="14"/><rect x="384" y="340" width="10" height="14"/><rect x="530" y="340" width="10" height="14"/><rect x="552" y="340" width="10" height="14"/></g>
+    <rect x="412" y="262" width="78" height="96"/><path d="M404 266 L451 196 L498 266Z"/><rect x="448" y="168" width="6" height="30"/>
+    <rect x="370" y="292" width="34" height="66"/><path d="M364 296 L387 246 L410 296Z"/>
+    <rect x="500" y="300" width="30" height="58"/><path d="M494 304 L515 262 L536 304Z"/>
+    <rect x="320" y="322" width="36" height="88"/><path d="M314 326 L338 286 L362 326Z"/>
+    <rect x="552" y="316" width="40" height="94"/><path d="M546 320 L572 270 L598 320Z"/>
+  </g>
+  <path d="M451 168 l22 7 -22 7z" fill="#8a2a3a"/>
+  <!-- 窓あかり -->
+  <g fill="#ffcf7a" opacity=".9"><rect x="428" y="288" width="7" height="11" rx="3"/><rect x="448" y="288" width="7" height="11" rx="3"/><rect x="468" y="288" width="7" height="11" rx="3"/><rect x="440" y="318" width="8" height="12" rx="4"/><rect x="458" y="318" width="8" height="12" rx="4"/><rect x="383" y="312" width="6" height="9" rx="3"/><rect x="512" y="318" width="6" height="9" rx="3"/><rect x="568" y="340" width="7" height="10" rx="3"/><rect x="334" y="344" width="7" height="10" rx="3"/></g>
+  <!-- 手前の森と魔物の目 -->
+  <path d="M0 520 L0 468 Q80 446 150 470 Q230 490 300 520Z M900 520 L900 460 Q800 444 720 474 Q650 496 600 520Z" fill="#090614"/>
+  <g fill="#090614"><path d="M30 470 l18 -60 18 60z"/><path d="M80 474 l16 -52 16 52z"/><path d="M820 466 l18 -62 18 62z"/><path d="M770 472 l15 -50 15 50z"/></g>
+  <g fill="#ff4a5a"><circle cx="120" cy="488" r="2.2"/><circle cx="130" cy="488" r="2.2"/><circle cx="752" cy="492" r="2.2"/><circle cx="762" cy="492" r="2.2"/><circle cx="200" cy="500" r="1.8"/><circle cx="208" cy="500" r="1.8"/></g>
+</svg>
+</div>
+
+<section class="scr" id="title">
+  <div class="logo mc"><small>名城を守り抜け</small><h1><span class="l1">世界さんぽ</span><span class="l2">ディフェンス</span></h1></div>
+  <p class="lead">世界の名城に押し寄せる魔物の群れを、<br>塔・城壁・投石機で迎え撃つ。<br>ドイツの古城から、伝説の大陸アトランティスへ。</p>
+  <div class="menu">
+    <button class="btn go mc" id="tPlay">防衛をはじめる</button>
+    <button class="btn mc" id="tHow">遊び方</button>
+    <div class="sub"><a class="btn" href="/sekai/">世界さんぽへ</a><a class="btn" href="/defence-castle/">戦国・城ディフェンス</a></div>
+  </div>
+  <p class="prog" id="prog"></p>
+</section>
+
+<section class="scr" id="stages" hidden>
+  <div class="sheet"><p class="era">ステージ選び</p><h1 class="mc">守る城を選ぶ</h1>
+    <p class="note">小さな城から順に。進むほど魔物は強く、数も増えます。泉の結界を多く残して守り抜くほど★が増えます。</p>
+    <ol class="st mc" id="stList"></ol>
+    <div class="act"><button class="btn" data-go="title">タイトルへ</button></div></div>
+</section>
+
+<section class="scr" id="how" hidden>
+  <div class="sheet"><p class="era">遊び方</p><h1 class="mc">防衛の心得</h1>
+  <h2 class="mc">勝ち負け</h2><p>魔物は<b>闇の門</b>から現れ、決まった道を通って城の奥の<b>聖なる泉</b>をめざします。たどり着かれるたびに泉の結界が削れ、0になると負け。<b>全10波</b>を守り抜けば勝ちです。</p>
+  <h2 class="mc">塔を建てる</h2><p>地面の<b>金色の輪（＋）</b>をタップして塔を選びます。建てた塔をタップすると<b>強化</b>（3段階）や<b>売却</b>（使った金貨の7割が戻る）。塔は近づいた敵を自動で攻撃します。</p>
+  <div class="tw">
+    <div><svg viewBox="0 0 32 32" fill="currentColor"><path d="M9 29h14l-2-17H11z"/><path d="M8 12h16v-3h-2v1.5h-2V9h-2v1.5h-4V9h-2v1.5h-2V9H8z"/><path d="M9 9 16 2l7 7z" opacity=".75"/></svg><span><b class="mc">弓の塔</b>速く射る。空の敵も撃てる。骸骨兵には効きにくい</span></div>
+    <div><svg viewBox="0 0 32 32" fill="currentColor"><circle cx="9" cy="25" r="3.2"/><circle cx="23" cy="25" r="3.2"/><path d="M5 20h22v3H5z"/><path d="m12 21 12-15 2 1.6L14.6 22z"/><circle cx="25.5" cy="5.5" r="3"/></svg><span><b class="mc">投石機</b>遠くの群れをまとめて砕く。近すぎる敵と空の敵は撃てない</span></div>
+    <div><svg viewBox="0 0 32 32" fill="currentColor"><path d="M11 30h10l-1.5-14h-7z"/><path d="M9.5 16h13L16 5z" opacity=".8"/><path d="m16 0 3 3.5-3 3.5-3-3.5z" fill="#9fe8ff"/></svg><span><b class="mc">魔法の塔</b>鎧を通す魔法。当たった敵は遅くなる。最大まで強化すると連鎖する</span></div>
+    <div><svg viewBox="0 0 32 32" fill="currentColor"><path d="M2 12h4V9h3v3h4V9h6v3h4V9h3v3h4v16H2z"/></svg><span><b class="mc">城壁</b>道の上の<strong>橙の輪</strong>に建てる。地上の敵は壊すまで進めない。壊れたら建て直せる</span></div>
+  </div>
+  <h2 class="mc">魔物</h2>
+  <div class="en"><span>ゴブリン（弱いが数が多い）</span><span>魔狼（とても速い）</span><span>オーク（鎧が厚い）</span><span>骸骨兵（矢が効きにくい）</span><span>トロル（固く、城壁を壊す）</span><span>オーガの王（大将）</span><span class="air">大コウモリ（空）</span><span class="air">ワイバーン（空・固い）</span><span class="air">黒竜（空の大将）</span></div>
+  <p class="note">赤い矢印は地上の敵、紫は空の敵の通り道。空の敵は城壁も建物も越えて泉へ向かうので、<b>弓か魔法</b>で迎え撃ちましょう。</p>
+  <h2 class="mc">波と金貨</h2><p>画面下の<b>「防衛開始」</b>で第1波が来ます。波が出そろうと次の波までの秒読みが始まり、<b>早めに呼ぶほど金貨がもらえます</b>。魔物を倒しても金貨が入ります。次の波の顔ぶれは画面の下に出ます。</p>
+  <h2 class="mc">流星</h2><p>左下の<b>流星</b>を押してから地面をタップすると、空から火の玉が落ちて地上の魔物をまとめて焼き払い、しばらく足を鈍らせます。使うと40秒待ちます。</p>
+  <h2 class="mc">操作</h2><p>1本指で見回し、2本指でつまんで拡大・ひねって回転（右下の ⟳ でも回せます）。右上で速さ（×1・×2・×3）と一時停止。パソコンではドラッグ・ホイール・Q/Eキー。</p>
+  <h2 class="mc">コツ</h2><p>道が合わさる所（橋・門）に塔を集め、城壁で足止めしたところを投石機で砕くのが基本。城壁の前で詰まった群れに流星を落とすと一網打尽です。</p>
+  <div class="act"><button class="btn go" data-go="title">戻る</button></div></div>
+</section>
+
+<script src="stages.js"></script>
+<script>
+(function(){
+const {STAGES,SAVE}=window.SekaiTDStages;
+const $=id=>document.getElementById(id);
+let sv={}; try{ sv=JSON.parse(localStorage.getItem(SAVE)||'{}'); }catch(e){}
+const rec=id=>(sv.stages||{})[id]||{};
+function show(id){ for(const s of document.querySelectorAll('.scr')) s.hidden=s.id!==id; if(id==='stages') renderStages(); history.replaceState(null,'',id==='title'?location.pathname+location.search:'#'+id); }
+function toast(t){ const d=document.createElement('div'); d.className='toast'; d.textContent=t; document.body.appendChild(d); setTimeout(()=>d.style.opacity=0,1800); setTimeout(()=>d.remove(),2400); }
+const free=/[?&]all\b/.test(location.search);
+function renderStages(){
+  $('stList').innerHTML=STAGES.map((s,i)=>{ const r=rec(s.id),prevOk=i===0||rec(STAGES[i-1].id).cleared||free,ok=!!s.url&&prevOk,cl=r.cleared,stars=r.stars||0;
+    return `<li class="${ok?'ok':'lock'}${cl?' cl':''}" data-i="${i}"><span class="no">第${i+1}<br>ステージ</span><b>${s.name}</b><small>${s.land}・${s.feat}</small><em>${cl?`<span class="star">${'★'.repeat(stars)}<s>${'★'.repeat(3-stars)}</s></span><br>守り抜いた`:ok?'出陣できる':s.url?'前の城を<br>守り抜くと':'準備中'}</em></li>`; }).join('');
+  $('stList').querySelectorAll('li').forEach(li=>li.onclick=()=>{ const s=STAGES[+li.dataset.i]; if(li.classList.contains('ok')) location.href=s.url; else toast(s.url?'前の城を守り抜くと出陣できます':'この城は準備中です'); });
+}
+const done=STAGES.filter(s=>rec(s.id).cleared).length, stars=STAGES.reduce((a,s)=>a+(rec(s.id).stars||0),0);
+$('prog').textContent=done?`守り抜いた城 ${done}／${STAGES.length}　・　★ ${stars}`:`全${STAGES.length}ステージ（いま遊べるのは ${STAGES.filter(s=>s.url).length}）`;
+$('tPlay').onclick=()=>show('stages'); $('tHow').onclick=()=>show('how');
+document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>show(b.dataset.go));
+const h=location.hash.slice(1); show(['stages','how'].includes(h)?h:'title');
+})();
+</script>
+</body>
+</html>
