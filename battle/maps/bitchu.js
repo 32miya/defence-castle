@@ -92,7 +92,7 @@ const MAP={
   },
   keep:{x0:-140,x1:200,z0:-480,z1:430},
   camera:{x:10,z:20,yaw:-.3,dist:330,pitch:.9},
-  next:{id:'aizu',castle:'会津若松城',note:'準備中'}
+  next:{id:'aizu',castle:'会津若松城',url:'/32miya-aizu-castle/?battle',units:7}
 };
 if(typeof module!=='undefined'&&module.exports) module.exports=MAP; else (root.OshiroBattleMaps=root.OshiroBattleMaps||{})[MAP.id]=MAP;
 })(typeof window!=='undefined'?window:globalThis);

@@ -8,13 +8,13 @@ const STAGES=[
   {id:'hikone',   name:'彦根城',    pref:'近江',feat:'大堀切と天秤櫓・内堀と中堀',url:'/32miya-32miya-hikone-castle/?battle'},
   {id:'matsuyama',name:'松山城',    pref:'伊予',feat:'門が折れ曲がって続く山城・隠門',url:'/32miya-matsuyama-castle/?battle'},
   {id:'bitchu',   name:'備中松山城',pref:'備中',feat:'雲海に浮かぶ山城・一本道の登城道',url:'/32miya-32miya-bitchu-matsuyama-castle-/?battle'},
-  {id:'aizu',     name:'会津若松城',pref:'陸奥',feat:'鶴ヶ城・広い外郭'},
-  {id:'himeji',   name:'姫路城',    pref:'播磨',feat:'迷路のような門の連なり'},
-  {id:'kumamoto', name:'熊本城',    pref:'肥後',feat:'武者返しの石垣'},
-  {id:'azuchi',   name:'安土城',    pref:'近江',feat:'織田信長・鉄砲隊'},
-  {id:'osaka',    name:'大坂城',    pref:'摂津',feat:'最終決戦・大坂の陣・真田幸村'}
+  {id:'aizu',     name:'会津若松城',pref:'陸奥',feat:'鶴ヶ城・広い外郭',url:'/32miya-aizu-castle/?battle'},
+  {id:'himeji',   name:'姫路城',    pref:'播磨',feat:'迷路のような門の連なり',url:'/32miya-himeji-castle/?battle'},
+  {id:'kumamoto', name:'熊本城',    pref:'肥後',feat:'武者返しの石垣',url:'/32miya-kumamoto-castle/?battle'},
+  {id:'azuchi',   name:'安土城',    pref:'近江',feat:'織田信長・鉄砲隊',url:'/32miya-32miya-azuchi-castle/?battle'},
+  {id:'osaka',    name:'大坂城',    pref:'摂津',feat:'最終決戦・大坂の陣・真田幸村',url:'/32miya-osaka-castle/?battle'}
 ];
-const HIDDEN={id:'edo',name:'江戸城',pref:'武蔵',feat:'全城攻略で現れる隠しの城'};
+const HIDDEN={id:'edo',name:'江戸城',pref:'武蔵',feat:'全城攻略で現れる隠しの城',url:'/32miya-32miya-edo-castle-/?battle'};
 const API={STAGES,HIDDEN,SAVE:'oshiroBattle.v1'};
 if(typeof module!=='undefined'&&module.exports) module.exports=API; else root.OshiroBattleStages=API;
 })(typeof window!=='undefined'?window:globalThis);

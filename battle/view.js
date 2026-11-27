@@ -96,11 +96,14 @@ function buildBlock(){
   const thin=Math.round(3/c);
   for(let j=0;j<Hh;j++){ let i=0; while(i<W){ if(!D[j*W+i]){ i++; continue; } let e=i; while(e<W&&D[j*W+e]) e++; const L=e-i; for(let q=i;q<e;q++) D[j*W+q]=L<=thin?3:1; i=e; } }
   for(let i=0;i<W;i++){ let j=0; while(j<Hh){ if(!D[j*W+i]){ j++; continue; } let e=j; while(e<Hh&&D[e*W+i]) e++; const L=e-j; for(let q=j;q<e;q++){ const k=q*W+i; D[k]=(D[k]===3||L<=thin)?2:1; } j=e; } }
+  /* 門の通り道・石段は 4（だれでも通れて、段差もこえられる） */
+  const PS=new Set(); for(const g of MAP.gatePass||[]){ const [p,q]=g,L=Math.hypot(q[0]-p[0],q[1]-p[1]); for(let k=0;k<=L;k+=.5){ const x=p[0]+(q[0]-p[0])*k/L,z=p[1]+(q[1]-p[1])*k/L;
+    for(let i=Math.floor((x-1.8-K.x0)/c);i<=Math.ceil((x+1.8-K.x0)/c);i++) for(let j=Math.floor((z-1.8-K.z0)/c);j<=Math.ceil((z+1.8-K.z0)/c);j++){ if(i<0||j<0||i>=W||j>=Hh) continue; if(Math.hypot(K.x0+i*c-x,K.z0+j*c-z)<=1.8){ D[j*W+i]=0; PS.add(j*W+i); } } } }
   OB.blockInfo={ms:Math.round(performance.now()-t0),tris,cells:D.reduce((s,v)=>s+(v?1:0),0)};
   OB.blockData={D,W,H:Hh,c,x0:K.x0,z0:K.z0};
   /* 1.5mのマスの中心のまわりで判定（細い塀も逃さない）。0=通れる 1=建物 2=塀 */
   return (x,z)=>{ const i=Math.round((x-K.x0)/c),j=Math.round((z-K.z0)/c); if(i<0||j<0||i>=W||j>=Hh) return 0; let r=0;
-    for(let dj=-1;dj<=1;dj++) for(let di=-1;di<=1;di++){ if(Math.abs(di)+Math.abs(dj)>=2) continue; const ii=i+di,jj=j+dj; if(ii<0||jj<0||ii>=W||jj>=Hh) continue; const v=D[jj*W+ii]; if(v===1) return 1; if(v===2) r=2; } return r; };
+    for(let dj=-1;dj<=1;dj++) for(let di=-1;di<=1;di++){ if(Math.abs(di)+Math.abs(dj)>=2) continue; const ii=i+di,jj=j+dj; if(ii<0||jj<0||ii>=W||jj>=Hh) continue; const v=D[jj*W+ii]; if(v===1) return 1; if(v===2) r=2; } return r||(PS.has(j*W+i)?4:0); };
 }
 /* 木の葉の玉を粗くする（合戦では遠目で見るので、三角形を1/4に） */
 const TREES=[]; let treesCut=false;

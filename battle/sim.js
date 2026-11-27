@@ -97,7 +97,7 @@ class Grid{
     this.maxSlope=.8; this.g=new Float32Array(n); this.f=new Float32Array(n); this.par=new Int32Array(n); this.stamp=new Uint32Array(n); this.closed=new Uint32Array(n); this.run=0; }
   idx(x,z){ const i=Math.round((x-this.x0)/this.c),j=Math.round((z-this.z0)/this.c); if(i<0||j<0||i>=this.W||j>=this.H) return -1; return j*this.W+i; }
   pos(k){ return [this.x0+(k%this.W)*this.c,this.z0+Math.floor(k/this.W)*this.c]; }
-  ok(a,b,d,side){ const t=this.blk[b]; if(t===1||(t===2&&side!=='enemy')) return false; if(this.wat[b]||this.wat[a]) return true; const m=this.maxSlope*d;
+  ok(a,b,d,side){ const t=this.blk[b]; if(t===1||(t===2&&side!=='enemy')) return false; if(this.wat[b]||this.wat[a]) return true; const m=this.maxSlope*d*(t===4||this.blk[a]===4?2.5:1);   /* 4=門の通り道・石段（段差をこえられる） */
     if(Math.abs(this.h[a]-this.h[b])<=m) return true; const a2=this.h2[a],b2=this.h2[b];
     return (a2===a2&&Math.abs(a2-this.h[b])<=m)||(b2===b2&&Math.abs(this.h[a]-b2)<=m)||(a2===a2&&b2===b2&&Math.abs(a2-b2)<=m); }
   cost(k){ return (this.wat[k]?2:1)*(this.blk[k]===2?4:1); }
@@ -109,7 +109,7 @@ class Grid{
   /* 2段の地面（橋の上=0／橋の下=1）を区別して探す。ノード番号＝マス＋段×マスの数 */
   hl(k,L){ return L?this.h2[k]:this.h[k]; }
   okL(k,L,nk,NL,d,side){ const t=this.blk[nk]; if(t===1||(t===2&&side!=='enemy')) return false; if(NL&&!(this.h2[nk]===this.h2[nk])) return false;
-    if(this.wat[nk]||this.wat[k]) return true; return Math.abs(this.hl(k,L)-this.hl(nk,NL))<=this.maxSlope*d; }
+    if(this.wat[nk]||this.wat[k]) return true; return Math.abs(this.hl(k,L)-this.hl(nk,NL))<=this.maxSlope*d*(t===4||this.blk[k]===4?2.5:1); }
   find(ax,az,bx,bz,side){
     const s=this.idx(ax,az),t=this.idx(bx,bz); if(s<0||t<0) return null; if(s===t) return [[bx,bz]];
     const n=this.W*this.H; if(!this.g2||this.g2.length!==2*n){ this.g2=new Float32Array(2*n); this.f2=new Float32Array(2*n); this.par2=new Int32Array(2*n); this.st2=new Uint32Array(2*n); this.cl2=new Uint32Array(2*n); }
@@ -175,7 +175,7 @@ class Battle{
     this.gates=(map.narrow||[]).map((g,i)=>({i,name:g.name||'門',pos:g.pos,r:g.r||7,until:0,hp:0}));
     /* 門の向き（門を通る攻め口の道の向き）。閉じた門の内と外を分けるのに使う */
     for(const g of this.gates){ let bd=1e9; g.dir=[0,1]; g.w=Math.max(4,Math.min(8,g.r*1.4)); for(const id in this.routes){ const P=this.routes[id].pts; for(let i=1;i<P.length;i++){ const [ax,az]=P[i-1],[bx,bz]=P[i],dx=bx-ax,dz=bz-az,L=Math.hypot(dx,dz)||1,t=clamp(((g.pos[0]-ax)*dx+(g.pos[1]-az)*dz)/(L*L),0,1),d=dist(ax+dx*t,az+dz*t,g.pos[0],g.pos[1]); if(d<bd){ bd=d; g.dir=[dx/L,dz/L]; } } }
-      if(this.grid&&opt.block){ const G=this.grid,[dx,dz]=g.dir,free=(x,z)=>{ const k=G.idx(x,z); return k>=0&&!G.blk[k]; };
+      if(this.grid&&opt.block){ const G=this.grid,[dx,dz]=g.dir,free=(x,z)=>{ const k=G.idx(x,z); return k>=0&&(!G.blk[k]||G.blk[k]===4); };
         let best=null; for(let s0=-12;s0<=12;s0+=.75){ const cx=g.pos[0]+dx*s0,cz=g.pos[1]+dz*s0; if(!free(cx,cz)) continue; let l=0,r=0; while(l<12&&free(cx-dz*(l+.75),cz+dx*(l+.75))) l+=.75; while(r<12&&free(cx+dz*(r+.75),cz-dx*(r+.75))) r+=.75;
           const w=l+r+.75; if(w<11&&(!best||w<best.w-.4||(Math.abs(w-best.w)<=.4&&Math.abs(s0)<Math.abs(best.s)))) best={w,s:s0,x:cx+(r-l)/2*dz,z:cz-(r-l)/2*dx}; }
         if(best){ g.pos=[best.x,best.z]; g.w=Math.max(4,Math.min(9,best.w)); } } }
@@ -357,6 +357,8 @@ class Battle{
       if(u.side==='ally'&&this.skill&&this.skill.kind==='akazonae'&&u.base==='kiba') f*=1+(this.skill.v||.2);
       if(u.side==='ally'&&this.skill&&this.skill.kind==='kyuba'&&(u.base==='yumi'||u.base==='kiba')) f*=1+(this.skill.v||.15);
       if(u.side==='enemy'&&this.bossSkill&&this.bossSkill.kind==='yumi3'&&u.base==='yumi') f*=1+(this.bossSkill.v||.25);
+      /* 兵種を強める特技（味方の武将・敵の大将）: kind 'typeAtk', type 兵種, v 上がる割合 */
+      { const S=u.side==='ally'?this.skill:this.bossSkill; if(S&&S.kind==='typeAtk'&&(u.base===S.type||u.type===S.type)) f*=1+(S.v||.2); }
       if(u.side==='ally'&&this.skill&&this.skill.kind==='yari7'&&u.base==='yari') f*=1+(this.skill.v||.2);
       if(u.side==='ally'){ const sl=this.slotAt(u); if(sl&&sl.ambush) f*=sl.ambush; }   /* 伏兵の場所（松山城の隠門など） */
       if(this.buff(u,'yari')) f*=1.3; if(this.buff(u,'yumi')) f*=1.8; if(this.buff(u,'kiba')) f*=1.5; if(u.kobuUntil>this.time) f*=1.2;
