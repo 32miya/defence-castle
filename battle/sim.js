@@ -170,6 +170,8 @@ class Battle{
     /* 采配（策に使う） */
     this.saihai=this.C.saihaiStart; this.rocks=[];
     this.gates=(map.narrow||[]).map((g,i)=>({i,name:g.name||'門',pos:g.pos,r:g.r||7,until:0,hp:0}));
+    /* 門の向き（門を通る攻め口の道の向き）。閉じた門の内と外を分けるのに使う */
+    for(const g of this.gates){ let bd=1e9; g.dir=[0,1]; for(const id in this.routes){ const P=this.routes[id].pts; for(let i=1;i<P.length;i++){ const [ax,az]=P[i-1],[bx,bz]=P[i],dx=bx-ax,dz=bz-az,L=Math.hypot(dx,dz)||1,t=clamp(((g.pos[0]-ax)*dx+(g.pos[1]-az)*dz)/(L*L),0,1),d=dist(ax+dx*t,az+dz*t,g.pos[0],g.pos[1]); if(d<bd){ bd=d; g.dir=[dx/L,dz/L]; } } } }
     for(const a of (opt.army||[])) this.addAlly(a);
   }
   /* 味方の部隊を置く */
@@ -253,7 +255,7 @@ class Battle{
     if(u.state==='rout'){ u.routT-=dt; if(u.routT<=0){ u.state='idle'; u.morale=this.C.rallyMorale; u.order={kind:'hold',x:u.x,z:u.z,slot:this.slotAt(u)}; u.path=null; this.events.push({k:'rally',u}); } return; }
     const T=TYPES[u.type],o=u.order||{kind:'hold',x:u.x,z:u.z};
     const range=this.rangeOf(u);
-    const nearestE=(x,z,r,pref)=>{ let b=null,bd=r; for(const e of E){ if(e.state==='rout'&&T.melee&&dist(e.x,e.z,x,z)>12) continue; let d=dist(e.x,e.z,u.x,u.z); if(dist(e.x,e.z,x,z)>r) continue; if(pref&&BEATS[u.base]===e.base) d-=12; if(pref&&BEATS[e.base]===u.base) d+=12; if(d<bd){ bd=d; b=e; } } return b; };
+    const nearestE=(x,z,r,pref)=>{ let b=null,bd=r; for(const e of E){ if(e.state==='rout'&&T.melee&&dist(e.x,e.z,x,z)>12) continue; if(T.melee&&this.walled(u,e)) continue; let d=dist(e.x,e.z,u.x,u.z); if(dist(e.x,e.z,x,z)>r) continue; if(pref&&BEATS[u.base]===e.base) d-=12; if(pref&&BEATS[e.base]===u.base) d+=12; if(d<bd){ bd=d; b=e; } } return b; };
     let anchor=null; /* 守る場所 */
     if(o.kind==='hold') anchor=[o.x,o.z];
     else if(o.kind==='reinforce'){ const t=o.target; if(!t||t.state==='dead'||t.state==='gone'){ u.order={kind:'hold',x:u.x,z:u.z}; return; } anchor=[t.x+Math.sin(t.heading+Math.PI/2)*6,t.z+Math.cos(t.heading+Math.PI/2)*6]; }
@@ -272,7 +274,8 @@ class Battle{
       else if(ad>2.5){ u.moveFire=!!inR; /* 命じられた場所へ向かう途中も、射程内の敵に矢を射かけながら進む */ if(!u.path||!u.goal||dist(u.goal[0],u.goal[1],anchor[0],anchor[1])>2) this.goTo(u,anchor[0],anchor[1]); }
       return; }
     /* 守る場所から少し離れていても、すぐ近くで味方と戦っている敵がいれば加勢する */
-    if(!t){ let bd=28; for(const e of E){ if(e.state==='rout'||!e.engaged) continue; const d=dist(u.x,u.z,e.x,e.z); if(d<bd){ bd=d; t=e; } } }
+    if(t&&T.melee&&this.walled(u,t)) t=null;
+    if(!t){ let bd=28; for(const e of E){ if(e.state==='rout'||!e.engaged||this.walled(u,e)) continue; const d=dist(u.x,u.z,e.x,e.z); if(d<bd){ bd=d; t=e; } } }
     if(t){ u.target=t; const d=dist(u.x,u.z,t.x,t.z); if(d>this.C.contact*.9){ if(this.stale(u,t.x,t.z,5)) this.goTo(u,t.x,t.z); } else u.path=null; }
     else { u.target=null; const ad=dist(u.x,u.z,anchor[0],anchor[1]); if(ad>2.5){ if(!u.path||!u.goal||dist(u.goal[0],u.goal[1],anchor[0],anchor[1])>2) this.goTo(u,anchor[0],anchor[1]); } else u.path=null; }
   }
@@ -311,12 +314,12 @@ class Battle{
     const T=TYPES[u.type];
     if(u.state==='rout'){ u.routT-=dt; const r=u.route; if(!u.path||!u.path.length) this.retreat(u); if(dist(u.x,u.z,r.pts[0][0],r.pts[0][1])<6||u.routT<-14){ u.state='gone'; this.stats.enemyRouted++; this.events.push({k:'gone',u}); } return; }
     const range=this.rangeOf(u);
-    let near=null,nd=1e9; for(const a of A){ if(a.state==='rout') continue; const d=dist(u.x,u.z,a.x,a.z); if(d<nd){ nd=d; near=a; } }
+    let near=null,nd=1e9; for(const a of A){ if(a.state==='rout'||(T.melee&&this.walled(u,a))) continue; const d=dist(u.x,u.z,a.x,a.z); if(d<nd){ nd=d; near=a; } }
     u.target=null;
     if(T.melee){
       if(near&&nd<=this.C.contact){ u.target=near; u.path=null; return; }
       /* 騎馬は近くの弓を狙って突撃、足軽は近くの部隊に向かう */
-      let chase=null,cd=u.type==='kiba'?30:18; for(const a of A){ if(a.state==='rout') continue; const d=dist(u.x,u.z,a.x,a.z); const want=u.type==='kiba'?(a.base==='yumi'?d:d+12):d; if(want<cd){ cd=want; chase=a; } }
+      let chase=null,cd=u.type==='kiba'?30:18; for(const a of A){ if(a.state==='rout'||this.walled(u,a)) continue; const d=dist(u.x,u.z,a.x,a.z); const want=u.type==='kiba'?(a.base==='yumi'?d:d+12):d; if(want<cd){ cd=want; chase=a; } }
       if(chase){ u.target=chase; if(u.mode!=='chase'||this.stale(u,chase.x,chase.z,4)) this.goTo(u,chase.x,chase.z); u.mode='chase'; return; }
     } else {
       /* 弓: 射程に入ったら止まって射る。足軽を優先 */
@@ -334,7 +337,7 @@ class Battle{
     for(const u of all){
       if(u.state==='rout'||!u.target) continue; const t=u.target; if(t.state==='dead'||t.state==='gone'){ u.target=null; continue; }
       const T=TYPES[u.type],d=dist(u.x,u.z,t.x,t.z);
-      let reach=T.melee?C.contact+.5:this.rangeOf(u); if(d>reach) continue;
+      let reach=T.melee?C.contact+.5:this.rangeOf(u); if(d>reach) continue; if(T.melee&&this.walled(u,t)) continue;
       u.engaged=true; if(d<=C.contact+.5) t.engaged=true;
       let m=1; if(BEATS[u.base]===t.base) m=C.adv; else if(BEATS[t.base]===u.base) m=C.dis;
       let f=T.atk*m*(0.55+0.45*u.morale/100);
@@ -446,6 +449,11 @@ class Battle{
     if(this.time>=g.until){ g.until=0; g.hp=0; this.events.push({k:'gateOpen',g}); continue; }
     for(const e of this.live('enemy')) if(e.atGate===g&&!e.engaged) g.hp-=e.men/this.C.menScale*TYPES[e.type].atk*(TYPES[e.type].melee?.016:.006)*dt; } }
   gateOpenAt(g){ return !(g.until>this.time&&g.hp>0); }
+  /* 閉じた門をはさんで向かい合っているか（槍や刀は届かない。弓と落石・火矢は届く） */
+  walled(a,b){ for(const g of this.gates){ if(this.gateOpenAt(g)) continue; const R=g.r+10;
+      if(dist(a.x,a.z,g.pos[0],g.pos[1])>R&&dist(b.x,b.z,g.pos[0],g.pos[1])>R) continue;
+      const [dx,dz]=g.dir,sa=(a.x-g.pos[0])*dx+(a.z-g.pos[1])*dz,sb=(b.x-g.pos[0])*dx+(b.z-g.pos[1])*dz;
+      if(sa*sb<0) return true; } return false; }
   gateBlock(u,nx,nz){ for(const g of this.gates){ if(this.gateOpenAt(g)) continue; const d0=dist(u.x,u.z,g.pos[0],g.pos[1]),d1=dist(nx,nz,g.pos[0],g.pos[1]); if(d1<g.r+3&&d1<d0) return g; } return null; }
   face(u,t){ if(t) u.heading=Math.atan2(t.x-u.x,t.z-u.z); }
   separate(L){ for(let i=0;i<L.length;i++) for(let j=i+1;j<L.length;j++){ const a=L[i],b=L[j]; const dx=b.x-a.x,dz=b.z-a.z,d=Math.hypot(dx,dz),m=4.5; if(d<m&&d>1e-4){ const p=(m-d)/2*.5,ux=dx/d,uz=dz/d; this.nudge(a,-ux*p,-uz*p); this.nudge(b,ux*p,uz*p); } else if(d<=1e-4){ b.x+=.5; } } }
