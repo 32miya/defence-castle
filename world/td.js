@@ -580,7 +580,7 @@ function finish(win){ G.over=true; G.paused=false; select(null); G.metArm=false;
   const st='★'.repeat(stars)+'<s>'+'★'.repeat(3-stars)+'</s>';
   $('tdEndBox').className='tdBox mc'+(win?'':' lose');
   $('tdEndBox').innerHTML=win?`<p class="k">${MAP.name}</p><h2>守り抜いた！</h2><div class="tdStars">${st}</div>
-    <ul><li>結界の残り <b>${G.lives}／${G.maxLives}</b></li><li>倒した魔物 <b>${G.kills}</b>　・　使った金貨 <b>${G.spent}</b></li></ul>
+    <ul><li>結界の残り <b>${G.lives}／${G.maxLives}</b></li><li>倒した魔物 <b>${G.kills}</b>　・　使った金貨 <b>${G.spent}</b></li>${next&&!next.url?`<li>次の第${STAGE_I+2}ステージ「${next.name}」は準備中です</li>`:''}</ul>
     <div class="acts">${next&&next.url?`<a class="go" href="${next.url}">次へ：${next.name}</a>`:''}<a ${next&&next.url?'':'class="go"'} href="${HOME}#stages">ステージ選び</a><button id="tdAgain">もう一度</button></div>`
    :`<p class="k">${MAP.name}</p><h2>結界が破られた…</h2><ul><li>第<b>${G.wave+1}</b>波まで守った　・　倒した魔物 <b>${G.kills}</b></li><li>道が合わさる所に塔を集め、城壁で足止めしたところを投石機で砕こう。空の敵には弓と魔法。</li></ul>
     <div class="acts"><button class="go" id="tdAgain">もう一度</button><a href="${HOME}#stages">ステージ選び</a></div>`;
@@ -600,7 +600,7 @@ function frame(dt){ const now=performance.now();
 /* ================= はじめ ================= */
 if(HOST.setEra&&MAP.era) HOST.setEra(MAP.era);
 camera.fov=48; camera.near=.5; camera.updateProjectionMatrix();
-const LI=lighten();
+const LI=QS.has('nolight')?{}:lighten();
 applyQual();
 camApply(1);
 updUI(true); renderTogs();
