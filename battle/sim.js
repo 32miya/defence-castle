@@ -35,6 +35,7 @@ const SAKU={
 const baseOf=t=>(TYPES[t]&&TYPES[t].base)||t;
 
 const DEF={
+  capture:8,                 /* 本丸に敵がいて味方がいない時間が、この秒数たまると落城 */
   adv:1.5, dis:0.6,          /* ダメージ倍率（有利・不利） */
   K:0.013,                   /* 1人が1秒に倒す人数の基準 */
   contact:7,                 /* 白兵戦の間合い（部隊の中心どうし, m） */
@@ -246,7 +247,7 @@ class Battle{
     for(const u of E) this.thinkEnemy(u,A,dt);
     this.combat(A.concat(E),dt);
     this.moveAll(A.concat(E),dt);
-    this.checkEnd();
+    this.checkEnd(dt);
   }
   spawnWaves(dt){
     for(const w of this.waves){ if(!w.spawned&&this.time>=w.t){ w.spawned=true; this.waveNow=w.i; this.events.push({k:'wave',i:w.i,label:w.label,text:w.text});
@@ -266,7 +267,8 @@ class Battle{
     let anchor=null; /* 守る場所 */
     if(o.kind==='hold') anchor=[o.x,o.z];
     else if(o.kind==='reinforce'){ const t=o.target; if(!t||t.state==='dead'||t.state==='gone'){ u.order={kind:'hold',x:u.x,z:u.z}; return; } anchor=[t.x+Math.sin(t.heading+Math.PI/2)*6,t.z+Math.cos(t.heading+Math.PI/2)*6]; }
-    else if(o.kind==='intercept'){ const t=o.target; if(!t||t.state==='dead'||t.state==='gone'){ u.order={kind:'hold',x:u.x,z:u.z,slot:this.slotAt(u)}; u.target=null; return; }
+    else if(o.kind==='intercept'){ const t=o.target; if(o.back&&t&&t.state==='rout'){ const b=o.back; u.order=b; u.target=null; this.goTo(u,b.x,b.z); return; }
+      if(!t||t.state==='dead'||t.state==='gone'){ if(o.back){ const b=o.back; u.order=b; u.target=null; this.goTo(u,b.x,b.z); return; } u.order={kind:'hold',x:u.x,z:u.z,slot:this.slotAt(u)}; u.target=null; return; }
       u.target=t; const d=dist(u.x,u.z,t.x,t.z); if(d>(T.melee?this.C.contact:range*.9)){ if(this.stale(u,t.x,t.z,6)) this.goTo(u,t.x,t.z); } else u.path=null; return; }
     else if(o.kind==='auto'){ u.aiT=(u.aiT||0)-dt; if(u.aiT<=0){ u.aiT=2; this.autoPick(u,E); } anchor=u.autoAnchor||[u.home.pos[0],u.home.pos[1]]; }
     /* 守備・援軍・任せる: 近くの敵と戦う */
@@ -489,12 +491,23 @@ class Battle{
     if(q.d>4){ const p=r.pts[Math.max(0,q.i-1)]; const g=this.pathFor(u.x,u.z,p[0],p[1],'enemy'); for(const v of g) P.push(v); }
     for(let i=q.i-1;i>=0;i--) P.push(r.pts[i]); u.path=P; u.goal=r.pts[0]; }
   nudge(u,dx,dz){ const x=u.x+dx,z=u.z+dz,sd=this.mvSide(u); if(this.grid&&this.grid.blockedAt(x,z,sd)&&!this.grid.blockedAt(u.x,u.z,sd)) return; u.x=x; u.z=z; }
-  checkEnd(){
+  checkEnd(dt){
     /* どこまで押されたか */
     let br=0; for(const e of this.live('enemy')){ if(!e.route) continue; const L=this.lineS[e.route.id]; for(let i=0;i<L.length;i++) if(L[i]!==null&&e.s>L[i]+3) br=Math.max(br,i+1); }
     if(br>this.breached){ this.breached=br; this.events.push({k:'line',i:br,name:this.lines[br-1].name}); }
     const HS=[].concat(this.map.honmaru);   /* 本丸は1つの四角か、四角の並び */
-    for(const e of this.live('enemy')) if(e.state!=='rout'&&HS.some(H=>e.x>H.x0&&e.x<H.x1&&e.z>H.z0&&e.z<H.z1)){ this.end('lose','本丸に敵が入った'); return; }
+    /* 本丸の占拠: 敵が本丸に入り、味方が本丸（とそのまわり4m）にいない間だけ占拠が進む。CAP 秒で落城。追い出せば戻っていく */
+    const inH=(u,m)=>HS.some(H=>u.x>H.x0-m&&u.x<H.x1+m&&u.z>H.z0-m&&u.z<H.z1+m);
+    const ein=this.live('enemy').filter(e=>e.state!=='rout'&&inH(e,0)),ain=this.live('ally').some(a=>a.state!=='rout'&&inH(a,4));
+    const CAP=this.map.capture||DEF.capture;
+    if(ein.length&&!ain){ if(!this.capT) this.events.push({k:'honmaru',u:ein[0]}); this.capT=(this.capT||0)+(dt||0);
+      /* 本丸の近くで手の空いた味方が、自分から駆けつけて追い出し、すんだら持ち場へ戻る（1秒に1部隊まで） */
+      if((this._rescT=(this._rescT||0)-(dt||0))<=0){ this._rescT=1; const t=ein[0];
+        const c=this.live('ally').filter(a=>a.state!=='rout'&&!a.engaged&&a.order.kind==='hold'&&!a.order.retreat&&dist(a.x,a.z,t.x,t.z)<90).sort((a,b)=>dist(a.x,a.z,t.x,t.z)-dist(b.x,b.z,t.x,t.z))[0];
+        if(c){ const back=c.order; if(this.order(c.id,{kind:'intercept',target:t.id})) c.order.back=back; } } }
+    else if(this.capT){ this.capT=Math.max(0,this.capT-(dt||0)*(ein.length?.5:2)); if(!this.capT&&!ein.length) this.events.push({k:'honmaruSafe'}); }
+    this.capture=Math.min(1,(this.capT||0)/CAP);
+    if(this.capT>=CAP){ this.end('lose','本丸を敵に占拠された'); return; }
     if(this.time>=this.duration){ this.end('win',this.map.winText||'守り抜いた'); return; }
     const allSpawned=this.waves.every(w=>w.spawned)&&!this.spawnQ.length;
     if(allSpawned&&!this.live('enemy').some(e=>e.state!=='rout')){ this.end('win','最後の攻撃を退けた。敵は兵を引いた'); return; }
@@ -535,16 +548,22 @@ function formArmy(map,total,opt){
    ・減った兵は次の合戦に持ち越す
    ・次の合戦の前に、後詰め（援軍）として「合戦前の総兵数の reinf 割」が加わる
    ・損害が bonusLoss 以下なら、ほうびの後詰め（総兵数の bonus 割）がさらに加わる
-   ・次の城では、総兵数を「門の数＋3」部隊に自動で分け直す */
-const GROW={reinf:.3,bonusLoss:.2,bonus:.15,round:10};
+   ・次の城では、総兵数を「門の数＋3」部隊に自動で分け直す
+   ・次の城の「ふつうの兵数」（next.men）が分かるときは、後詰めで少なくとも floor＋keep×（1−損害率）割まで補い、
+     多すぎても cap 割まで（大負けしても詰まず、勝ち続けても敵が弱すぎにならない） */
+const GROW={reinf:.3,bonusLoss:.2,bonus:.1,round:10,floor:.9,keep:.35,cap:1.35};
 function nextArmy(res,nextMap,opt){
   opt=Object.assign({},GROW,opt||{});
   const rd=v=>Math.round(v/opt.round)*opt.round, lossRate=res.allyMen0?res.allyLost/res.allyMen0:1;
-  const left=res.army.reduce((s,a)=>s+a.men,0), reinf=rd(res.allyMen0*opt.reinf);
-  const bonus=res.state==='win'&&lossRate<=opt.bonusLoss?rd(res.allyMen0*opt.bonus):0;
-  const total=left+reinf+bonus, notes=[];
+  const left=res.army.reduce((s,a)=>s+a.men,0), nb=nextMap&&nextMap.men?nextMap.men*(nextMap.army?DEF.menScale:1):0, notes=[];
+  let reinf=rd(res.allyMen0*opt.reinf);
+  /* 次の城のふつうの兵数が分かるとき: 損害が少ないほど多く（損害0で1.25倍、7割で1倍、全滅で0.9倍）。下回る分を後詰めで補う */
+  if(nb){ const want=rd(nb*(opt.floor+opt.keep*(1-lossRate))); if(left+reinf<want){ reinf=rd(want-left); notes.push('次の城の守りに足りるよう、後詰めが増えた'); } }
+  let bonus=res.state==='win'&&lossRate<=opt.bonusLoss?rd((nb||res.allyMen0)*opt.bonus):0;
   if(bonus) notes.push('損害が'+Math.round(opt.bonusLoss*100)+'%以下だったので、ほうびの後詰め '+bonus+'人が加わる');
-  const N=nextMap?capOf(nextMap):null;
+  if(nb&&left+reinf+bonus>nb*opt.cap){ const over=left+reinf+bonus-rd(nb*opt.cap); const cut=Math.min(reinf,over); reinf-=cut; if(over>cut) bonus=Math.max(0,bonus-(over-cut)); }
+  const total=left+reinf+bonus;
+  const N=nextMap&&nextMap.gates?capOf(nextMap):null;
   return {lossRate,left,reinf,bonus,total,N,notes,army:res.army};
 }
 

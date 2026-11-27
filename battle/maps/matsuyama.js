@@ -93,7 +93,7 @@ const MAP={
     [[138,24],[86,24]],[[88,16],[-30,12]],[[86,-236],[24,-236]],[[0,-157],[18,-157]]],
 
   enemy:{
-    side:'毛利勢', scale:.9,
+    side:'毛利勢', scale:1.05,
     trend:'6方向から攻める。南と西の橋、北堀を渡る兵は三之丸から二之丸、黒門・大手門・揚木戸門と門をひとつずつ破って筒井門へ。東雲口の兵は長者ヶ平から戸無門へ。古町口と搦手の兵は山の北の乾門・艮門から本丸をねらう。最後の本隊は村上水軍の村上元吉',
     boss:{name:'村上元吉',skill:{kind:'suigun',name:'村上水軍',text:'敵は堀を渡っても遅くならず、弱くならない'}},
     waves:[
@@ -110,7 +110,7 @@ const MAP={
   },
   keep:{x0:-580,x1:262,z0:-356,z1:240},
   camera:{x:-110,z:-60,yaw:-.35,dist:380,pitch:.9},
-  next:{id:'bitchu',castle:'備中松山城',url:'/32miya-32miya-bitchu-matsuyama-castle-/?battle',units:6}
+  next:{id:'bitchu',castle:'備中松山城',url:'/32miya-32miya-bitchu-matsuyama-castle-/?battle',units:6,men:9700}
 };
 if(typeof module!=='undefined'&&module.exports) module.exports=MAP; else (root.OshiroBattleMaps=root.OshiroBattleMaps||{})[MAP.id]=MAP;
 })(typeof window!=='undefined'?window:globalThis);

@@ -279,3 +279,9 @@ html.obattle:not(.obready) body::after{content:"陣を敷いております…";
 @media (prefers-reduced-motion:reduce){#obCut.on{animation:none;opacity:1;transform:none}}
 .obB-enemy .pat{margin:0 0 6px;font-size:13px;color:#f3e3bf} .obB-enemy .pat b{color:#ffcf6a;margin:0 4px}
 .obU.obNew{animation:obNewIn 1.4s ease-out} @keyframes obNewIn{0%{opacity:0;filter:blur(2px)}100%{opacity:1;filter:none}}
+/* 本丸の占拠ゲージ（敵が本丸にいる間だけ出る。満ちると落城） */
+#obCap{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 190px);white-space:nowrap;transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:8px;background:rgba(120,16,12,.88);color:#fff;font-weight:900;font-size:14px;box-shadow:0 2px 10px rgba(0,0,0,.4);pointer-events:none;animation:obCapBlink .8s ease-in-out infinite alternate}
+#obCap[hidden]{display:none}
+#obCap i{display:block;width:120px;height:10px;border-radius:5px;background:rgba(255,255,255,.25);overflow:hidden}
+#obCap u{display:block;height:100%;width:0;background:linear-gradient(90deg,#ffd34a,#ff5a2a)}
+@keyframes obCapBlink{from{opacity:.75}to{opacity:1}}

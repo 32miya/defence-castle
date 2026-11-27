@@ -75,7 +75,7 @@ const MAP={
     [[78,240],[78,130]],[[46,106],[12,106]],[[9,-440],[9,-380]],[[-1,-354],[-1,-326]],[[-1,-292],[-1,-210]],[[-3,-184],[-3,-120]],[[-15,-106],[-15,-96]]],
 
   enemy:{
-    side:'毛利勢', scale:.8,
+    side:'毛利勢', scale:.74,
     trend:'3方向から攻める。南のふもとの兵は一本道の登城道を、東の兵はふいご峠から中太鼓の丸へ。北の大松山の尾根から来る兵は、天神の丸・相畑を抜けて後曲輪から本丸へ。最後の本隊は小早川隆景',
     boss:{name:'小早川隆景',skill:{kind:'yumi3',v:.25,name:'三本の矢',text:'敵の弓隊の攻撃1.25倍'}},
     waves:[
@@ -92,7 +92,7 @@ const MAP={
   },
   keep:{x0:-140,x1:200,z0:-480,z1:430},
   camera:{x:10,z:20,yaw:-.3,dist:330,pitch:.9},
-  next:{id:'aizu',castle:'会津若松城',url:'/32miya-aizu-castle/?battle',units:7}
+  next:{id:'aizu',castle:'会津若松城',url:'/32miya-aizu-castle/?battle',units:7,men:10100}
 };
 if(typeof module!=='undefined'&&module.exports) module.exports=MAP; else (root.OshiroBattleMaps=root.OshiroBattleMaps||{})[MAP.id]=MAP;
 })(typeof window!=='undefined'?window:globalThis);

@@ -77,7 +77,7 @@ const MAP={
     [[44,118],[44,90]],[[76,84],[76,52]],[[70,-8],[46,-8]],[[-10,88],[-10,52]],[[9,44],[9,-4]]],
 
   enemy:{
-    side:'島津勢', scale:1.05,
+    side:'島津勢', scale:1.1,
     trend:'4方向から攻める。南の行幸坂と西の二の丸の兵は西出丸から数寄屋丸へ、北の兵は加藤神社の坂を、東の兵は須戸口から東竹之丸と飯田丸に分かれて本丸をねらう。大砲も引いてくる。最後の本隊は島津義弘',
     boss:{name:'島津義弘',skill:{kind:'yama',name:'鬼島津',text:'大将の部隊の士気が下がりにくい（0.5倍）'}},
     waves:[
@@ -94,7 +94,7 @@ const MAP={
   },
   keep:{x0:-440,x1:150,z0:-270,z1:340},
   camera:{x:-40,z:0,yaw:-.3,dist:330,pitch:.9},
-  next:{id:'azuchi',castle:'安土城',url:'/32miya-32miya-azuchi-castle/?battle',units:7}
+  next:{id:'azuchi',castle:'安土城',url:'/32miya-32miya-azuchi-castle/?battle',units:7,men:11600}
 };
 if(typeof module!=='undefined'&&module.exports) module.exports=MAP; else (root.OshiroBattleMaps=root.OshiroBattleMaps||{})[MAP.id]=MAP;
 })(typeof window!=='undefined'?window:globalThis);

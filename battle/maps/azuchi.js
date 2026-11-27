@@ -69,7 +69,7 @@ const MAP={
     [[-107,70],[-107,-48]],[[-82,-63],[-46,-63]],[[-30,-187],[-16,-187]],[[16,-187],[30,-187]]],
 
   enemy:{
-    side:'明智勢', scale:1.3,
+    side:'明智勢', scale:1.45,
     trend:'4方向から攻める。大手道・百々橋口・七曲口の兵は、つづら折りから黒金門へ（七曲口の兵は大手口で大手道に合わさる）。湖岸の兵は三の丸の下から天主台をねらう。鉄砲と大砲が多い。最後の本隊は明智光秀',
     boss:{name:'明智光秀',skill:{kind:'typeAtk',type:'teppo',v:.25,name:'明智の鉄砲',text:'敵の鉄砲隊の攻撃1.25倍'}},
     waves:[
@@ -86,7 +86,7 @@ const MAP={
   },
   keep:{x0:-215,x1:170,z0:-290,z1:255},
   camera:{x:-10,z:-80,yaw:-.3,dist:330,pitch:.9},
-  next:{id:'osaka',castle:'大坂城',url:'/32miya-osaka-castle/?battle',units:8}
+  next:{id:'osaka',castle:'大坂城',url:'/32miya-osaka-castle/?battle',units:8,men:13800}
 };
 if(typeof module!=='undefined'&&module.exports) module.exports=MAP; else (root.OshiroBattleMaps=root.OshiroBattleMaps||{})[MAP.id]=MAP;
 })(typeof window!=='undefined'?window:globalThis);

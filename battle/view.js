@@ -561,6 +561,8 @@ function onEvents(b){
     else if(e.k==='saku'){ if(e.kind==='kobu'){ sfx('taiko'); sfx('horagai',0,.8,.6); toast('鼓舞！士気が上がった','good'); } else if(e.kind==='rakuseki'){ dropRocks(e.a.x,e.a.z); sfx('taiko'); cutIn('rock','落石！'); } else if(e.kind==='hiya'){ fireVolley(e.a.from,e.a.x,e.a.z); sfx('arrow',0,1); sfx('arrow',.25,1); cutIn('fire','火矢！'); } else if(e.kind==='gate'){ sfx('gate'); toast(`${B.gates[e.a.gate].name}を閉ざした`,'good'); } }
     else if(e.k==='rock'){ dust(e.x,e.z,e.r); sfx('rumble'); if(e.combo) toast(`<b>門で足止めして落石！</b>敵${e.hits}部隊に1.5倍の損害`,'big'); else if(e.hits) toast(`落石！敵${e.hits}部隊に当たった`,'good'); }
     else if(e.k==='fire'){ dust(e.x,e.z,e.r,0xff7a2a); dust(e.x,e.z,e.r*.6,0xffc04a); sfx('clash',0,.4); if(e.hits) toast(`火矢！敵${e.hits}部隊に当たった`,'good'); }
+    else if(e.k==='honmaru'&&!bench){ for(const d of [0,.3,.6,.9]) SND.play('bell',d,900,1); toast('<b>本丸に敵が入った！</b>追い出さないと落城する','big'); }
+    else if(e.k==='honmaruSafe'&&!bench) toast('本丸から敵を追い出した','good');
     else if(e.k==='gateBroken'&&!bench){ sfx('gateBreak'); toast(`${e.g.name}が破られた！`,'warn'); }
     else if(e.k==='gateOpen'&&!bench){ sfx('gate'); toast(`${e.g.name}が開いた`,'info'); }
     else if(e.k==='wave'){ sfx('horagai'); sfx('taiko',0,1.6); toast(`<b>第${'一二三四五'[e.i]}波　${e.label}</b>${e.text||''}`,'big'); }
@@ -622,7 +624,7 @@ function showBrief(){
   <p class="obB-era">${MAP.era}</p>
   <div class="obB-cond">
     <div class="obB-card win"><em class="rib red">勝利条件</em>${MON}<b>${MAP.goal}<small>（${Math.round(MAP.duration/60)}分）</small></b></div>
-    <div class="obB-card lose"><em class="rib blue">敗北条件</em>${MON}<b>本丸に敵が入る</b></div>
+    <div class="obB-card lose"><em class="rib blue">敗北条件</em>${MON}<b>本丸を敵に占拠される</b></div>
   </div>
   <section class="obB-army"><header>${KABUTO}<b>我が軍</b><span>${AR.army.length}部隊（門${MAP.gates.length}＋3）・${AR.total}人${AR.carried?'<small>前の城から持ち越し（後詰め込み）</small>':''}</span></header>
     ${AR.army.map(a=>`<div class="obB-row"><div class="grp">${groupArt(a.type)}</div><i class="tic t-${SIM.baseOf(a.type)}">${G(a.type)}</i><div class="nm"><b>${a.name}</b><span>${T[a.type].name} ${a.men}人</span></div><p>${role(a.type)}</p></div>`).join('')}
@@ -636,7 +638,7 @@ function showBrief(){
 }
 function showResult(){
   $('obModal').className='obModal';
-  const r=B.result(),nx=SIM.nextArmy(r,null),win=r.state==='win',lossP=Math.round(nx.lossRate*100);
+  const r=B.result(),nx=SIM.nextArmy(r,MAP.next),win=r.state==='win',lossP=Math.round(nx.lossRate*100);
   const sv=loadSave(); if(win&&sv.pat) delete sv.pat[MAP.id]; /* 守り抜いたら、次に来たときは別の攻め方 */ sv[MAP.id]=Object.assign(sv[MAP.id]||{},{played:(sv[MAP.id]&&sv[MAP.id].played||0)+1}); if(win){ sv[MAP.id].cleared=true; sv[MAP.id].bestLoss=Math.min(sv[MAP.id].bestLoss===undefined?100:sv[MAP.id].bestLoss,lossP); sv.army=nx.army.map(a=>({id:a.id,gen:a.gen,name:a.name,type:a.type,men:a.men})); sv.armyTotal=nx.total; sv.next=MAP.next&&MAP.next.castle; sv.armyFor=MAP.next&&MAP.next.id; } saveSave(sv);
   if(win) IY.applyTime(MAP.goal.includes('日没')?3:2); OB.shadowDirty=3;
   const M=$('obModal'); M.hidden=false; $('obOrder').hidden=true; $('obPrompt').hidden=true;
@@ -770,7 +772,8 @@ function after(dt){
   updMarks(); updGates(); updSaku();
   if(B&&UI.sel&&!$('obOrder').hidden&&((hudT2-=dt)<=0)){ hudT2=.5; showOrder(); }
   $('obSaku').hidden=!B||!!bench;
-  if(B&&!bench){ const left=B.duration-B.time; $('obTime').textContent=fmt(left); const w=B.waveNow; const nx=B.waves.find(q=>!q.spawned);
+  if(B&&!bench){ const left=B.duration-B.time; $('obTime').textContent=fmt(left);
+    { const c=B.capture||0,el2=$('obCap')||(()=>{ const d=el('div'); d.id='obCap'; d.innerHTML='<b>本丸占拠</b><i><u></u></i>'; ($('obRoot')||document.body).appendChild(d); return d; })(); el2.hidden=c<=0; if(c>0) el2.querySelector('u').style.width=(c*100).toFixed(0)+'%'; } const w=B.waveNow; const nx=B.waves.find(q=>!q.spawned);
     $('obWave').innerHTML=w<0?`敵の接近まで ${fmt(nx.t-B.time)}`:`第${'一二三四五'[w]}波 ${B.waves[w].label}${nx?`<small>次の波 ${fmt(nx.t-B.time)}</small>`:'<small>最後の波</small>'}`; }
   if(!$('obHud').hidden&&(hudT-=dt)<=0){ hudT=.5; const t=$('obHudT')||(()=>{ const p=el('pre'); p.id='obHudT'; $('obHud').prepend(p); return p; })(); t.textContent=hudText(); }
 }

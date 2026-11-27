@@ -75,7 +75,7 @@ const MAP={
     [[-12,358],[-12,298]],[[356,130],[294,130]],[[46,-398],[46,-354]],[[-280,65],[-236,65]],[[-60,212],[-60,160]],[[152,70],[94,70]],[[152,-60],[88,-60]],[[-66,-264],[-66,-200]],[[0,84],[0,44]],[[0,22],[0,-2]]],
 
   enemy:{
-    side:'石田勢', scale:.84,
+    side:'石田勢', scale:.64,
     trend:'5方向から攻める。大手・表門の兵は大堀切から鐘の丸、廊下橋、天秤櫓へ。黒門・山崎の兵は西の丸から本丸へ。三の手からは東の堀を渡って斜面を登る兵も来る。最後の本隊は石田三成',
     boss:{name:'石田三成',skill:{kind:'daiichi',name:'大一大万大吉',text:'敵全軍の士気が下がりにくい'}},
     waves:[
@@ -92,7 +92,7 @@ const MAP={
   },
   keep:{x0:-305,x1:378,z0:-414,z1:386},
   camera:{x:30,z:20,yaw:-.45,dist:300,pitch:.9},
-  next:{id:'matsuyama',castle:'松山城',url:'/32miya-matsuyama-castle/?battle',units:8}
+  next:{id:'matsuyama',castle:'松山城',url:'/32miya-matsuyama-castle/?battle',units:8,men:9000}
 };
 if(typeof module!=='undefined'&&module.exports) module.exports=MAP; else (root.OshiroBattleMaps=root.OshiroBattleMaps||{})[MAP.id]=MAP;
 })(typeof window!=='undefined'?window:globalThis);

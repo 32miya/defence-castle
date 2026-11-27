@@ -80,7 +80,7 @@ const MAP={
     [[-110,-48],[-150,-50]],[[-146,-96],[-88,-104]]],
 
   enemy:{
-    side:'西国勢', scale:.8,
+    side:'西国勢', scale:.9,
     trend:'4方向から攻める。大手の兵は桜門から菱の門へ、西の兵は西の丸を越えて北の坂から ろの門 へ、東の兵は帯郭から りの門・ぬの門へ、北の兵は内堀を泳ぎ渡って水の門をねらう。最後の本隊は毛利輝元',
     boss:{name:'毛利輝元',skill:{kind:'daiichi',name:'中国の大大名',text:'敵の士気が下がりにくい（0.85倍）'}},
     waves:[
@@ -97,7 +97,7 @@ const MAP={
   },
   keep:{x0:-500,x1:500,z0:-500,z1:530},
   camera:{x:-20,z:-60,yaw:-.3,dist:330,pitch:.9},
-  next:{id:'kumamoto',castle:'熊本城',url:'/32miya-kumamoto-castle/?battle',units:7}
+  next:{id:'kumamoto',castle:'熊本城',url:'/32miya-kumamoto-castle/?battle',units:7,men:11100}
 };
 if(typeof module!=='undefined'&&module.exports) module.exports=MAP; else (root.OshiroBattleMaps=root.OshiroBattleMaps||{})[MAP.id]=MAP;
 })(typeof window!=='undefined'?window:globalThis);

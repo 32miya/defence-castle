@@ -59,7 +59,7 @@ const MAP={
   gatePass:[[[-26.5,201],[-26.5,170]],[[-17,167],[-17,150]],[[196,40],[150,40]],[[114,17],[56,17]]],
 
   enemy:{
-    side:'武田勢', scale:1.02,
+    side:'武田勢', scale:.55,
     trend:'騎馬が多い。大手門（南）と北東の外堀ぞいから太鼓門へ。二の手からは西の堀を渡り塀をよじ登る兵も来る。本隊は武田晴信（信玄）の騎馬',
     boss:{name:'武田晴信（信玄）',portrait:'boss_takeda.webp',skill:{kind:'yama',name:'動かざること山の如し',text:'大将の部隊は士気が下がりにくい'}},
     waves:[
@@ -74,7 +74,7 @@ const MAP={
   },
   keep:{x0:-200,x1:305,z0:-200,z1:252},
   camera:{x:90,z:60,yaw:-.35,dist:260,pitch:.9},
-  next:{id:'hikone',castle:'彦根城',url:'/32miya-32miya-hikone-castle/?battle',units:7}
+  next:{id:'hikone',castle:'彦根城',url:'/32miya-32miya-hikone-castle/?battle',units:7,men:8100}
 };
 if(typeof module!=='undefined'&&module.exports) module.exports=MAP; else (root.OshiroBattleMaps=root.OshiroBattleMaps||{})[MAP.id]=MAP;
 })(typeof window!=='undefined'?window:globalThis);

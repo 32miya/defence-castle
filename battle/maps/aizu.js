@@ -75,7 +75,7 @@ const MAP={
     [[128,-38],[90,-38]],[[88,-38],[58,-38]],[[256,5],[220,5]]],
 
   enemy:{
-    side:'伊達勢', scale:.76,
+    side:'伊達勢', scale:.52,
     trend:'4方向から攻める。北の追手門と西出丸口の兵は出丸を抜けて本丸へ。南口の兵は帯郭から本丸南の坂へ。東の兵は二の丸から廊下橋をわたる。鉄砲隊が多く、最後の本隊は伊達政宗',
     boss:{name:'伊達政宗',skill:{kind:'typeAtk',type:'teppo',v:.3,name:'伊達の鉄砲隊',text:'敵の鉄砲隊の攻撃1.3倍'}},
     waves:[
@@ -92,7 +92,7 @@ const MAP={
   },
   keep:{x0:-440,x1:310,z0:-270,z1:340},
   camera:{x:-10,z:-20,yaw:-.3,dist:330,pitch:.9},
-  next:{id:'himeji',castle:'姫路城',url:'/32miya-himeji-castle/?battle',units:7}
+  next:{id:'himeji',castle:'姫路城',url:'/32miya-himeji-castle/?battle',units:7,men:10600}
 };
 if(typeof module!=='undefined'&&module.exports) module.exports=MAP; else (root.OshiroBattleMaps=root.OshiroBattleMaps||{})[MAP.id]=MAP;
 })(typeof window!=='undefined'?window:globalThis);
