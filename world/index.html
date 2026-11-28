@@ -66,6 +66,12 @@ button,a{font:inherit;color:inherit}
 .en{display:flex;flex-wrap:wrap;gap:4px 6px;margin:6px 0;font-size:12px}
 .en span{padding:2px 8px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid var(--ln)}
 .en span.air{border-color:#9a7ae0}
+.lbl{margin:10px 0 4px;font-size:11.5px;letter-spacing:.2em;opacity:.8}
+.chips{display:flex;gap:5px;flex-wrap:wrap}
+.chips button{flex:1;min-width:70px;min-height:38px;border-radius:10px;border:1px solid var(--ln);background:transparent;color:inherit;font:inherit;font-size:12.5px;cursor:pointer}
+.chips button small{display:block;font-size:9.5px;opacity:.7}
+.chips button.on{border-color:var(--gold);color:#ffd978;background:rgba(226,181,74,.14)}
+.st .bs{display:block;color:#ffe9a8;font-weight:700;font-size:11.5px}
 .toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 16px);transform:translateX(-50%);z-index:9;background:rgba(18,14,34,.94);border:1px solid var(--gold);border-radius:10px;padding:8px 14px;font-size:13px;transition:opacity .5s}
 @media (prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
@@ -106,7 +112,7 @@ button,a{font:inherit;color:inherit}
 
 <section class="scr" id="title">
   <div class="logo mc"><small>名城を守り抜け</small><h1><span class="l1">世界さんぽ</span><span class="l2">ディフェンス</span></h1></div>
-  <p class="lead">世界の名城に押し寄せる魔物の群れを、<br>塔・城壁・投石機で迎え撃つ。<br>ドイツの古城から、伝説の大陸アトランティスへ。</p>
+  <p class="lead">世界の名城に押し寄せる魔物の群れを、<br>塔・城壁・投石機と三つの技で迎え撃つ。<br>ドイツの古城から、伝説の大陸アトランティスへ。</p>
   <div class="menu">
     <button class="btn go mc" id="tPlay">防衛をはじめる</button>
     <button class="btn mc" id="tHow">遊び方</button>
@@ -117,28 +123,34 @@ button,a{font:inherit;color:inherit}
 
 <section class="scr" id="stages" hidden>
   <div class="sheet"><p class="era">ステージ選び</p><h1 class="mc">守る城を選ぶ</h1>
-    <p class="note">小さな城から順に。進むほど魔物は強く、数も増えます。泉の結界を多く残して守り抜くほど★が増えます。</p>
+    <p class="note">小さな城から順に。進むほど魔物は強く、新しい魔物も現れます。点数は難易度ごとに記録されます。</p>
+    <p class="lbl">難易度</p><div class="chips" id="dfs"></div>
+    <p class="lbl">遊び方</p><div class="chips" id="mds"><button data-md="n">10波を守る</button><button data-md="e">無限モード<small>クリアした城だけ</small></button></div>
     <ol class="st mc" id="stList"></ol>
+    <p class="note" id="total"></p>
     <div class="act"><button class="btn" data-go="title">タイトルへ</button></div></div>
 </section>
 
 <section class="scr" id="how" hidden>
   <div class="sheet"><p class="era">遊び方</p><h1 class="mc">防衛の心得</h1>
   <h2 class="mc">勝ち負け</h2><p>魔物は<b>闇の門</b>から現れ、決まった道を通って城の奥の<b>聖なる泉</b>をめざします。たどり着かれるたびに泉の結界が削れ、0になると負け。<b>全10波</b>を守り抜けば勝ちです。</p>
-  <h2 class="mc">塔を建てる</h2><p>地面の<b>金色の輪（＋）</b>をタップして塔を選びます。建てた塔をタップすると<b>強化</b>（3段階）や<b>売却</b>（使った金貨の7割が戻る）。塔は近づいた敵を自動で攻撃します。</p>
+  <h2 class="mc">塔を建てる・強化する</h2><p>地面の<b>金色の輪（＋）</b>をタップして塔を選びます。建てた塔をタップすると強化・売却（7割が戻る）・<b>狙う相手</b>（先頭／固い敵／空優先／群れ）の切り替え。<b>Lv3は二つの道から一つを選ぶ</b>（あとから変えられません）。</p>
   <div class="tw">
-    <div><svg viewBox="0 0 32 32" fill="currentColor"><path d="M9 29h14l-2-17H11z"/><path d="M8 12h16v-3h-2v1.5h-2V9h-2v1.5h-4V9h-2v1.5h-2V9H8z"/><path d="M9 9 16 2l7 7z" opacity=".75"/></svg><span><b class="mc">弓の塔</b>速く射る。空の敵も撃てる。骸骨兵には効きにくい</span></div>
-    <div><svg viewBox="0 0 32 32" fill="currentColor"><circle cx="9" cy="25" r="3.2"/><circle cx="23" cy="25" r="3.2"/><path d="M5 20h22v3H5z"/><path d="m12 21 12-15 2 1.6L14.6 22z"/><circle cx="25.5" cy="5.5" r="3"/></svg><span><b class="mc">投石機</b>遠くの群れをまとめて砕く。近すぎる敵と空の敵は撃てない</span></div>
-    <div><svg viewBox="0 0 32 32" fill="currentColor"><path d="M11 30h10l-1.5-14h-7z"/><path d="M9.5 16h13L16 5z" opacity=".8"/><path d="m16 0 3 3.5-3 3.5-3-3.5z" fill="#9fe8ff"/></svg><span><b class="mc">魔法の塔</b>鎧を通す魔法。当たった敵は遅くなる。最大まで強化すると連鎖する</span></div>
-    <div><svg viewBox="0 0 32 32" fill="currentColor"><path d="M2 12h4V9h3v3h4V9h6v3h4V9h3v3h4v16H2z"/></svg><span><b class="mc">城壁</b>道の上の<strong>橙の輪</strong>に建てる。地上の敵は壊すまで進めない。壊れたら建て直せる</span></div>
+    <div><svg viewBox="0 0 32 32" fill="currentColor"><path d="M9 29h14l-2-17H11z"/><path d="M8 12h16v-3h-2v1.5h-2V9h-2v1.5h-4V9h-2v1.5h-2V9H8z"/><path d="M9 9 16 2l7 7z" opacity=".75"/></svg><span><b class="mc">弓の塔</b>速い・空も撃てる。Lv3：<strong>連射</strong>か<strong>狙撃</strong>（鎧を通す一撃）</span></div>
+    <div><svg viewBox="0 0 32 32" fill="currentColor"><circle cx="9" cy="25" r="3.2"/><circle cx="23" cy="25" r="3.2"/><path d="M5 20h22v3H5z"/><path d="m12 21 12-15 2 1.6L14.6 22z"/><circle cx="25.5" cy="5.5" r="3"/></svg><span><b class="mc">投石機</b>群れをまとめて砕く。空は撃てない。Lv3：<strong>火炎</strong>（燃える床）か<strong>氷</strong>（足止め）</span></div>
+    <div><svg viewBox="0 0 32 32" fill="currentColor"><path d="M11 30h10l-1.5-14h-7z"/><path d="M9.5 16h13L16 5z" opacity=".8"/><path d="m16 0 3 3.5-3 3.5-3-3.5z" fill="#9fe8ff"/></svg><span><b class="mc">魔法の塔</b>鎧を通し、霊体にも効く。Lv3：<strong>雷</strong>（4体に連鎖）か<strong>呪い</strong>（傷が4割増し）</span></div>
+    <div><svg viewBox="0 0 32 32" fill="currentColor"><path d="M8 30h10v-3H8z"/><path d="M12 27V3h2v24z"/><path d="M14 4h13l-3 5 3 5H14z" fill="#e85a4a"/></svg><span><b class="mc">軍旗の塔</b>攻撃しないが、まわりの塔の威力・速さ・射程を上げる</span></div>
+    <div><svg viewBox="0 0 32 32" fill="currentColor"><path d="M3 26 10 9l7 6 4-5 8 16z" opacity=".7"/><circle cx="23" cy="25" r="4" fill="#ffd040"/></svg><span><b class="mc">金鉱</b>波のはじめに金貨を生む。今の守りか、先への投資か</span></div>
+    <div><svg viewBox="0 0 32 32" fill="currentColor"><path d="M2 12h4V9h3v3h4V9h6v3h4V9h3v3h4v16H2z"/></svg><span><b class="mc">城壁</b>道の上の<strong>橙の輪</strong>に建てる。地上の敵は壊すまで進めない</span></div>
   </div>
   <h2 class="mc">魔物</h2>
-  <div class="en"><span>ゴブリン（弱いが数が多い）</span><span>魔狼（とても速い）</span><span>オーク（鎧が厚い）</span><span>骸骨兵（矢が効きにくい）</span><span>トロル（固く、城壁を壊す）</span><span>オーガの王（大将）</span><span class="air">大コウモリ（空）</span><span class="air">ワイバーン（空・固い）</span><span class="air">黒竜（空の大将）</span></div>
-  <p class="note">赤い矢印は地上の敵、紫は空の敵の通り道。空の敵は城壁も建物も越えて泉へ向かうので、<b>弓か魔法</b>で迎え撃ちましょう。</p>
-  <h2 class="mc">波と金貨</h2><p>画面下の<b>「防衛開始」</b>で第1波が来ます。波が出そろうと次の波までの秒読みが始まり、<b>早めに呼ぶほど金貨がもらえます</b>。魔物を倒しても金貨が入ります。次の波の顔ぶれは画面の下に出ます。</p>
-  <h2 class="mc">流星</h2><p>左下の<b>流星</b>を押してから地面をタップすると、空から火の玉が落ちて地上の魔物をまとめて焼き払い、しばらく足を鈍らせます。使うと40秒待ちます。</p>
-  <h2 class="mc">操作</h2><p>1本指で見回し、2本指でつまんで拡大・ひねって回転（右下の ⟳ でも回せます）。右上で速さ（×1・×2・×3）と一時停止。パソコンではドラッグ・ホイール・Q/Eキー。</p>
-  <h2 class="mc">コツ</h2><p>道が合わさる所（橋・門）に塔を集め、城壁で足止めしたところを投石機で砕くのが基本。城壁の前で詰まった群れに流星を落とすと一網打尽です。</p>
+  <div class="en"><span>ゴブリン</span><span>魔狼（速い）</span><span>オーク（鎧）</span><span>骸骨兵（矢が効きにくい）</span><span>トロル（固い）</span><span>盾兵（盾が矢と石を防ぐ→魔法で割る）</span><span>霊体（魔法と流星だけ効く・壁をすり抜け）</span><span>回復僧（仲間を治す→先に倒す）</span><span>分裂スライム（倒すと分かれる）</span><span>投石オーク（塔を止める）</span><span>狼騎兵（壁を跳ぶ）</span><span>オーガの王（吠えて仲間を速く・手下を呼ぶ）</span><span class="air">大コウモリ</span><span class="air">ワイバーン</span><span class="air">黒竜（炎で塔を止める）</span></div>
+  <p class="note">足元が光る魔物は<b>精鋭</b>（金＝疾風・青＝鉄壁・緑＝再生）。倒すと金貨2倍・点3倍。</p>
+  <h2 class="mc">波</h2><p>波にはそれぞれ作戦があります（様子見・二手・速攻・空と陸・小ボス・静かな波・怒涛・挟み撃ち・精鋭部隊・決戦）。次の波の顔ぶれは画面の下に。波が出そろうと秒読みが始まり、<b>早めに呼ぶほど金貨と点</b>。貯めた金貨には波ごとに<b>利子</b>がつきます。</p>
+  <h2 class="mc">技</h2><p><b>流星</b>（地面をタップ・地上の群れを焼く）、<b>凍風</b>（全部の魔物をほとんど止める）、<b>援軍</b>（道をタップ・騎士が15秒道をふさいで戦う）。使うとしばらく待ちます。</p>
+  <h2 class="mc">点数と★</h2><p>魔物を倒す・<b>コンボ</b>（続けて倒すほど倍率アップ）・<b>無傷の波</b>（1体も通さない）・早めに呼ぶ・最後に残った結界で点が入り、難易度の倍率がかかります。★1は守り抜く、★2は結界を半分以上、★3は結界をほぼ守って目標点以上。結果は画像にして保存・共有できます。</p>
+  <h2 class="mc">難易度と無限モード</h2><p>やさしい（点×0.6）・ふつう・むずかしい（点×1.5）・悪夢（点×2.2）。守り抜いた城は<b>無限モード</b>で、どこまで耐えられるか点数を競えます（5波ごとに大将）。</p>
+  <h2 class="mc">操作</h2><p>1本指で見回し、2本指でつまんで拡大・ひねって回転（右下の ⟳ でも）。右上で速さ（×1・×2・×3）と一時停止。パソコンではドラッグ・ホイール・Q/Eキー。</p>
   <div class="act"><button class="btn go" data-go="title">戻る</button></div></div>
 </section>
 
@@ -147,18 +159,30 @@ button,a{font:inherit;color:inherit}
 (function(){
 const {STAGES,SAVE}=window.SekaiTDStages;
 const $=id=>document.getElementById(id);
+const DIFFS={easy:'やさしい',normal:'ふつう',hard:'むずかしい',nightmare:'悪夢'};
 let sv={}; try{ sv=JSON.parse(localStorage.getItem(SAVE)||'{}'); }catch(e){}
+const saveSv=()=>{ try{ localStorage.setItem(SAVE,JSON.stringify(sv)); }catch(e){} };
 const rec=id=>(sv.stages||{})[id]||{};
+const best=(id,k)=>((sv.best||{})[id]||{})[k];
+let DK=DIFFS[sv.diff]?sv.diff:'normal', EN=false;
+const fmt=n=>Math.round(n).toLocaleString('ja-JP');
 function show(id){ for(const s of document.querySelectorAll('.scr')) s.hidden=s.id!==id; if(id==='stages') renderStages(); history.replaceState(null,'',id==='title'?location.pathname+location.search:'#'+id); }
 function toast(t){ const d=document.createElement('div'); d.className='toast'; d.textContent=t; document.body.appendChild(d); setTimeout(()=>d.style.opacity=0,1800); setTimeout(()=>d.remove(),2400); }
 const free=/[?&]all\b/.test(location.search);
 function renderStages(){
-  $('stList').innerHTML=STAGES.map((s,i)=>{ const r=rec(s.id),prevOk=i===0||rec(STAGES[i-1].id).cleared||free,ok=!!s.url&&prevOk,cl=r.cleared,stars=r.stars||0;
-    return `<li class="${ok?'ok':'lock'}${cl?' cl':''}" data-i="${i}"><span class="no">第${i+1}<br>ステージ</span><b>${s.name}</b><small>${s.land}・${s.feat}</small><em>${cl?`<span class="star">${'★'.repeat(stars)}<s>${'★'.repeat(3-stars)}</s></span><br>守り抜いた`:ok?'出陣できる':s.url?'前の城を<br>守り抜くと':'準備中'}</em></li>`; }).join('');
-  $('stList').querySelectorAll('li').forEach(li=>li.onclick=()=>{ const s=STAGES[+li.dataset.i]; if(li.classList.contains('ok')) location.href=s.url; else toast(s.url?'前の城を守り抜くと出陣できます':'この城は準備中です'); });
+  $('dfs').innerHTML=Object.entries(DIFFS).map(([k,v])=>`<button data-df="${k}" class="${k===DK?'on':''}">${v}</button>`).join('');
+  $('dfs').querySelectorAll('[data-df]').forEach(b=>b.onclick=()=>{ DK=b.dataset.df; sv.diff=DK; saveSv(); renderStages(); });
+  $('mds').querySelectorAll('[data-md]').forEach(b=>{ b.classList.toggle('on',(b.dataset.md==='e')===EN); b.onclick=()=>{ EN=b.dataset.md==='e'; renderStages(); }; });
+  let tot=0;
+  $('stList').innerHTML=STAGES.map((s,i)=>{ const r=rec(s.id),prevOk=i===0||rec(STAGES[i-1].id).cleared||free,ok=!!s.url&&prevOk&&(!EN||r.cleared||free),cl=r.cleared,stars=r.stars||0,b=best(s.id,(EN?'∞':'')+DK);
+    if(b) tot+=b.score;
+    const sc=b?`<span class="bs">${fmt(b.score)}点${EN?`・第${b.wave}波`:''}</span>`:'';
+    return `<li class="${ok?'ok':'lock'}${cl?' cl':''}" data-i="${i}"><span class="no">第${i+1}<br>ステージ</span><b>${s.name}</b><small>${s.land}・${s.feat}</small><em>${cl?`<span class="star">${'★'.repeat(stars)}<s>${'★'.repeat(3-stars)}</s></span>`:''}${sc||(ok?'出陣できる':EN&&s.url?'守り抜くと<br>遊べる':s.url?'前の城を<br>守り抜くと':'準備中')}</em></li>`; }).join('');
+  $('stList').querySelectorAll('li').forEach(li=>li.onclick=()=>{ const s=STAGES[+li.dataset.i]; if(li.classList.contains('ok')) location.href=s.url+'&diff='+DK+(EN?'&endless':''); else toast(EN?'守り抜いた城だけ無限モードで遊べます':s.url?'前の城を守り抜くと出陣できます':'この城は準備中です'); });
+  $('total').textContent=tot?`${DIFFS[DK]}${EN?'・無限':''}の自己ベスト合計：${fmt(tot)}点`:'';
 }
 const done=STAGES.filter(s=>rec(s.id).cleared).length, stars=STAGES.reduce((a,s)=>a+(rec(s.id).stars||0),0);
-$('prog').textContent=done?`守り抜いた城 ${done}／${STAGES.length}　・　★ ${stars}`:`全${STAGES.length}ステージ（いま遊べるのは ${STAGES.filter(s=>s.url).length}）`;
+$('prog').textContent=done?`守り抜いた城 ${done}／${STAGES.length}　・　★ ${stars}／${STAGES.length*3}`:`全${STAGES.length}ステージ・難易度4段階・無限モード`;
 $('tPlay').onclick=()=>show('stages'); $('tHow').onclick=()=>show('how');
 document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>show(b.dataset.go));
 const h=location.hash.slice(1); show(['stages','how'].includes(h)?h:'title');

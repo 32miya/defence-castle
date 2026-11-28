@@ -12,9 +12,9 @@ def alongF(P,f):
 if 'air' in R and ground:
   a0=R['air']['pts'][0]; alt=a0[2]-res['coreY']
   # 空の敵は、空の入口にいちばん近い地上の道の後半の上を飛ぶ（塔の上を通るように）
-  best=min(ground,key=lambda k:math.hypot(alongF(R[k]['pts'],.55)[0]-a0[0],alongF(R[k]['pts'],.55)[1]-a0[1]))
+  best=min(ground,key=lambda k:math.hypot(alongF(R[k]['pts'],.3)[0]-a0[0],alongF(R[k]['pts'],.3)[1]-a0[1]))
   P=R[best]['pts']; pts=[a0]
-  for f,h in ((.55,.75),(.75,.55),(.9,.4)):
+  for f,h in ((.3,.8),(.45,.7),(.6,.6),(.75,.5),(.9,.4)):
     q=alongF(P,f); pts.append([round(q[0],1),round(q[1],1),round(q[2]+max(8,alt*h),1)])
   c=P[-1]; pts.append([c[0],c[1],round(c[2]+9,1)])
   R['air']['pts']=pts
